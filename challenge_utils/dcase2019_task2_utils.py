@@ -10,25 +10,26 @@ def get_class_list(sample_submission_filename):
     return sorted(labels)
  
 
-def generate_ann_files(audio_path, label_filename, ann_path, class_list):
+def generate_ann_files(train_path, class_list):
+    
+    datasets = ['curated', 'noisy']
 
     class_list = sorted(class_list)
 
-    label_dict = dict()
-    lines = open(label_filename, 'r').readlines()[1:]
-    for line in lines:
-        cols = line.strip().replace('"', '').split(',')
-        audio_filename = cols[0]
-        label_ind = set([class_list.index(s) for s in cols[1:]])
-        label_dict[audio_filename] = label_ind
+    for dataset in datasets:
 
-    for root, _, filenames in os.walk(audio_path):
-        for filename in filenames:
-            rel_path = os.path.relpath(root, audio_path)
+        label_filename = os.path.join(train_path, f'train_{dataset}', f'train_{dataset}.csv')
+        lines = open(label_filename, 'r').readlines()[1:]
+        for line in lines:
+            cols = line.strip().replace('"', '').split(',')
+            audio_filename = cols[0]
+            label_set = set([class_list.index(s) for s in cols[1:]])
 
             ann_filename = os.path.join(
-                ann_path,
-                rel_path,
-                filename.replace('wav', 'ann')
+                train_path,
+                f'train_{dataset}',
+                'annotations',
+                audio_filename.replace('wav', 'ann')
             )
-            write_annotation_file([Annotation(label_set=label_dict[filename])], ann_filename)
+
+            write_annotation_file([Annotation(label_set=label_set)], ann_filename)
