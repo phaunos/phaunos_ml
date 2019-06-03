@@ -51,20 +51,28 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
             for file_path, _, filenames in os.walk(audio_path):
                 for filename in filenames:
                     add_file = True
+
+                    # get file labels
+                    ann_filename = os.path.join(
+                        ann_path,
+                        os.path.relpath(file_path, audio_path),
+                        filename.replace('.wav', '.ann'))
+                    ann_set = read_annotation_file(ann_filename)
+                    file_label_set = set()
+                    for ann in ann_set:
+                        file_label_set.update(ann.label_set)
+
+                    # get intersection
                     if label_set:
-                        ann_filename = os.path.join(
-                            ann_path,
-                            os.path.relpath(file_path, audio_path),
-                            filename.replace('.wav', '.ann'))
-                        ann_set = read_annotation_file(ann_filename)
-                        file_label_set = set()
-                        for ann in ann_set:
-                            file_label_set.update(ann.label_set)
-                        if not file_label_set.intersection(label_set):
+                        file_label_set = file_label_set.intersection(label_set)
+                        if not file_label_set:
                             add_file = False
+
+                    # write file
                     if add_file:
                         audio_filename = os.path.join(
                             os.path.relpath(file_path, root_path),
                             filename
                         )
-                        out_file.write(f'{audio_filename}\n')
+                        file_label_set_str = '#'.join(str(i) for i in file_label_set)
+                        out_file.write(f'{audio_filename},{file_label_set_str}\n')
