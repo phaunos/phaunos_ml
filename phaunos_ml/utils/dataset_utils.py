@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import Counter
 import numpy as np
 from scipy import sparse
 from scipy.sparse import lil_matrix
@@ -133,4 +133,16 @@ def split_dataset(dataset_file, test_size=0.2):
         
     else:
         print("Not implemented")
+
+
+def print_dataset_stat(dataset_file):
+
+    filenames, labels = read_dataset_file(dataset_file)
+    label_set = set.union(*labels)
+
+    counter = Counter([l for label_set in labels for l in label_set])
+
+    print(f'{len(filenames)} files')
+    for k, v in sorted(counter.items()):
+        print(f'{k:3}: {v}')
 
