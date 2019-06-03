@@ -14,7 +14,7 @@ def seconds2hms(seconds):
 
 
 def audiofile2tfrecord(
-        audio_path,
+        root_path,
         audio_filename,
         out_dir,
         feature_extractor,
@@ -23,10 +23,13 @@ def audiofile2tfrecord(
 ):
     
     # read audio
-    y, sr = librosa.load(os.path.join(audio_path, audio_filename), sr=None)
+    y, sr = librosa.load(os.path.join(root_path, audio_filename), sr=None)
 
     # read annotations
-    annotation_set = read_annotation_file(annotation_filename) if annotation_filename else None
+    if annotation_filename:
+        annotation_set = read_annotation_file(os.path.join(root_path, annotation_filename))
+    else:
+        annotation_set =  None
 
     if not chunk_duration:
         out_filename = os.path.join(

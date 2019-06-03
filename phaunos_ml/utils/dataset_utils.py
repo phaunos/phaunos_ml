@@ -11,23 +11,26 @@ from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
 
 
-def audiolist2tfrecords(
-        audio_path,
-        filelist,
+def dataset2tfrecords(
+        root_path,
+        dataset_file,
         out_dir,
         feature_extractor,
-        annotation_path=None
+        audio_dirname='audio',
+        annotation_dirname='annotations',
+        with_labels=True
 ):
-    for line in tqdm(open(filelist, 'r').readlines()):
+    for line in tqdm(open(dataset_file, 'r').readlines()):
         if line.startswith('#'):
             continue
-        audio_filename = line.strip()
-        annotation_filename = os.path.join(
-            annotation_path,
-            audio_filename.replace('.wav', ANN_EXT)
-        ) if annotation_path else None
+        audio_filename = line.strip().split(',')[0]
+        if with_labels:
+            annotation_filename = audio_filename.replace(audio_dirname, annotation_dirname) \
+                .replace('.wav', ANN_EXT)
+        else:
+            annotation_filename = None
         audiofile2tfrecord(
-            audio_path,
+            root_path,
             audio_filename,
             out_dir,
             feature_extractor,
