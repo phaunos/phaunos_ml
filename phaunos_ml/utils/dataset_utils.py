@@ -1,8 +1,11 @@
 import os
 from collections import defaultdict
-import random
+import numpy as np
+from scipy import sparse
+from scipy.sparse import lil_matrix
 import time
 from tqdm import tqdm
+from skmultilearn.model_selection import iterative_train_test_split
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
@@ -76,3 +79,58 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
                         )
                         file_label_set_str = '#'.join(str(i) for i in file_label_set)
                         out_file.write(f'{audio_filename},{file_label_set_str}\n')
+
+
+def read_dataset_file(dataset_file):
+
+    filenames = []
+    labels = []
+
+    for line in open(dataset_file, 'r'):
+        if line.startswith('#'):
+            continue
+        filename, file_label_set_str = line.strip().split(',')
+        filenames.append(filename)
+        file_label_set = set([int(i) for i in file_label_set_str.split('#')])
+        labels.append(file_label_set)
+
+    return filenames, labels
+
+
+def split_dataset(dataset_file, test_size=0.2):
+    """Split dataset in train and test sets (stratified)."""
+
+    filenames, labels = read_dataset_file(dataset_file)
+    label_set = set.union(*labels)
+    label_list = sorted(list(label_set))
+
+    multilabel = False
+    for file_label_set in labels:
+        if len(file_label_set) > 1:
+            multilabel = True
+
+    if multilabel:
+
+        # adapt data to iterative_train_test_split input
+        filenames = np.expand_dims(np.array(filenames), axis=1)
+        sparse_labels = lil_matrix((len(filenames), len(label_list)))
+        for i, file_label_set in enumerate(labels):
+            file_label_ind = [label_list.index(l) for l in file_label_set]
+            sparse_labels[i, file_label_ind] = 1
+
+        # multi-label stratified data split
+        X_train, y_train, X_test, y_test = iterative_train_test_split(np.array(filenames), sparse_labels, test_size=test_size)
+
+        # write dataset files
+        for set_name, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
+            set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
+            with open(set_filename, 'w') as set_file:
+                set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
+                for i in range(X.shape[0]):
+                    file_label_list = sparse.find(y[i])[1]
+                    file_label_str = '#'.join([str(label_list[ind]) for ind in file_label_list])
+                    set_file.write(f'{X[i,0]},{file_label_str}\n')
+        
+    else:
+        print("Not implemented")
+
