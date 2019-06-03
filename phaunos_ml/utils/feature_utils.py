@@ -1,4 +1,5 @@
 import numpy as np
+from enum import Enum
 import librosa
 from librosa.display import specshow
 import json
@@ -6,6 +7,12 @@ import json
 
 LOG_OFFSET = 1e-8
 MIN_LAST_CHUNK_DURATION = 0.2
+
+
+class NP_DTYPE(Enum):
+    F16 = np.float16
+    F32 = np.float32
+    F64 = np.float64
 
 
 class MelSpecExtractor:
@@ -34,6 +41,13 @@ class MelSpecExtractor:
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
 
+    @classmethod
+    def from_config(cls, config_file):
+        config = json.load(open(config_file, 'r'))
+        obj = cls(**config)
+        obj.dtype = NP_DTYPE[config['dtype']].value
+        return obj
+
     @property
     def example_size(self):
         return int((self.example_duration * self.sr - self.n_fft) / self.hop_length + 1)
@@ -57,7 +71,7 @@ class MelSpecExtractor:
     def config2file(self, filename):
         with open(filename, 'w') as f:
             d = self.__dict__.copy()
-            d['dtype'] = str(d['dtype'])
+            d['dtype'] = NP_DTYPE(self.dtype).name
             json.dump(d, f)
 
     def process(self, audio, sr):
