@@ -5,7 +5,7 @@ import time
 from tqdm import tqdm
 
 from .audio_utils import audiofile2tfrecord
-from .annotation_utils import read_annotation_file
+from .annotation_utils import read_annotation_file, ANN_EXT
 
 
 def audiolist2tfrecords(
@@ -21,7 +21,7 @@ def audiolist2tfrecords(
         audio_filename = line.strip()
         annotation_filename = os.path.join(
             annotation_path,
-            audio_filename.replace('.wav', '.ann')
+            audio_filename.replace('.wav', ANN_EXT)
         ) if annotation_path else None
         audiofile2tfrecord(
             audio_path,
@@ -56,7 +56,7 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
                     ann_filename = os.path.join(
                         ann_path,
                         os.path.relpath(file_path, audio_path),
-                        filename.replace('.wav', '.ann'))
+                        filename.replace('.wav', ANN_EXT))
                     ann_set = read_annotation_file(ann_filename)
                     file_label_set = set()
                     for ann in ann_set:

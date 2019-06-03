@@ -1,6 +1,9 @@
 import os
 
 
+ANN_EXT = '.ann'
+
+
 class PhaunosAnnotationError(Exception):
     pass
 
