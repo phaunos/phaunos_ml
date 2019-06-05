@@ -50,7 +50,7 @@ class MelSpecExtractor:
 
     @property
     def example_size(self):
-        return int((self.example_duration * self.sr - self.n_fft) / self.hop_length + 1)
+        return int(self.example_duration * self.sr / self.hop_length)
     
     @property
     def example_shape(self):
@@ -62,7 +62,7 @@ class MelSpecExtractor:
 
     @property
     def actual_example_duration(self):
-        return ((self.example_size - 1) * self.hop_length + self.n_fft) / self.sr
+        return self.example_size * self.hop_length / self.sr
 
     @property
     def actual_example_hop_duration(self):
