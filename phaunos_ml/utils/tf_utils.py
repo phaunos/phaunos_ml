@@ -15,6 +15,12 @@ def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 
+# Can't get tf.logging.warning working...
+def myprint(message):
+    tf.print(message)
+    return 1
+
+
 def serialize_data(filename, start_time, end_time, data, labels):
     feature = {
         'filename': _bytes_feature([filename.encode()]),
@@ -50,7 +56,10 @@ def serialized2example(serialized_data, feature_shape):
     return tf.parse_single_example(serialized_data, features)
 
 
-def serialized2data(serialized_data, feature_shape, n_classes):
+def serialized2data(serialized_data, feature_shape, class_list, nolabel_warning=True):
+    """Generate features and labels.
+    Labels are indices of original label in class_list.
+    """
 
     features = {
         'filename': tf.FixedLenFeature([], tf.string),
@@ -66,13 +75,38 @@ def serialized2data(serialized_data, feature_shape, n_classes):
     # one-hot encode labels
     labels = tf.strings.to_number(
         tf.string_split([example['labels']], '#').values,
-        out_type=tf.int64
+        out_type=tf.int32
+    )
+
+    # get intersection of class_list and labels
+    labels = tf.squeeze(
+        tf.sparse.to_dense(
+            tf.sets.intersection(
+                tf.expand_dims(labels, axis=0),
+                tf.expand_dims(class_list, axis=0)
+            )
+        ),
+        axis=0
+    )
+
+    # sort class_list and get indices of labels in class_list
+    class_list = tf.sort(class_list)
+    labels = tf.where(
+        tf.equal(
+            tf.expand_dims(labels, axis=1),
+            class_list)
+    )[:,1]
+
+    tf.cond(
+        tf.math.logical_and(nolabel_warning, tf.equal(tf.size(labels), 0)),
+        true_fn=lambda:myprint(tf.strings.format('File {} has no label', example['filename'])),
+        false_fn=lambda:1
     )
 
     one_hot = tf.cond(
         tf.equal(tf.size(labels), 0),
-        lambda: tf.zeros(n_classes),
-        lambda: tf.reduce_max(tf.one_hot(labels, n_classes), 0)
+        true_fn=lambda: tf.zeros(tf.size(class_list)),
+        false_fn=lambda: tf.reduce_max(tf.one_hot(labels, tf.size(class_list)), 0)
     )
 
     return (data, one_hot)
