@@ -61,10 +61,8 @@ def train(
 
     if multilabel:
         loss = keras.losses.binary_crossentropy
-        print("yeah")
     else:
         loss = keras.losses.categorical_crossentropy
-        print("oh")
 
     model.compile(loss=loss,
                   optimizer=optimizer,
