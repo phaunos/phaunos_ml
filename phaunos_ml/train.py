@@ -56,8 +56,7 @@ def train(
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
     # define optimizer
-    optimizer = keras.optimizers.Adam(
-        lr=0.01, beta_1=0.5, beta_2=0.999)
+    optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
 
     if multilabel:
         loss = keras.losses.binary_crossentropy
