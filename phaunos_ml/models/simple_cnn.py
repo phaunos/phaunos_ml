@@ -4,7 +4,7 @@ from tensorflow.keras import layers
 from .layer_utils import conv2d_bn
 
 
-def build_model(x, n_classes, data_format='channels_first'):
+def build_model(x, n_classes, multilabel=False, data_format='channels_first'):
 
     # format must be channels_first (faster on NVIDIA GPUs)
 
@@ -17,6 +17,9 @@ def build_model(x, n_classes, data_format='channels_first'):
 
     x = layers.Flatten()(x)
     x = layers.Dense(100, activation='elu')(x)
-    x = layers.Dense(n_classes, activation='softmax')(x)
+    if multilabel:
+        x = layers.Dense(n_classes, activation='sigmoid', name='logits')(x)
+    else:
+        x = layers.Dense(n_classes, activation='softmax', name='logits')(x)
 
     return x
