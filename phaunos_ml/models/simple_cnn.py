@@ -16,10 +16,10 @@ def build_model(x, n_classes, multilabel=False, data_format='channels_first'):
     x = layers.MaxPooling2D(pool_size=(5, 5), strides=(3,3), data_format=data_format, name='l3_mp')(x)
 
     x = layers.Flatten()(x)
-    x = layers.Dense(100, activation='elu')(x)
+    x = layers.Dense(100, activation='elu', name='logits')(x)
     if multilabel:
-        x = layers.Dense(n_classes, activation='sigmoid', name='logits')(x)
+        x = layers.Dense(n_classes, activation='sigmoid')(x)
     else:
-        x = layers.Dense(n_classes, activation='softmax', name='logits')(x)
+        x = layers.Dense(n_classes, activation='softmax')(x)
 
     return x
