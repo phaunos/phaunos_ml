@@ -10,6 +10,7 @@ from scipy import interpolate
 import git
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
+from phaunos_ml.utils.dataset_utils import read_dataset_file
 from phaunos_ml.utils.tf_utils import filelist2dataset
 from phaunos_ml.models import simple_cnn
 
@@ -138,16 +139,12 @@ if __name__ == "__main__":
     # get training and valid (optional) datasets #
     ##############################################
 
-    train_files = []
-    class_set = set()
-
-    for line in open(args.train_set_file, 'r'):
-        if not line.startswith('#'):
-            filename, label_str = line.strip().split(',')
-            train_files.append(os.path.join(args.feature_path, filename.replace('.wav', '.tf')))
-            class_set.update([int(i) for i in label_str.split('#')])
-
-    class_list = sorted(list(class_set))
+    train_files, labels = read_dataset_file(
+        args.train_set_file,
+        prepend_path=args.feature_path,
+        replace_ext='.tf'
+    )
+    class_list = sorted(list(set.union(*labels)))
     train_dataset = filelist2dataset(
         train_files,
         feature_extractor.example_shape,
@@ -155,13 +152,13 @@ if __name__ == "__main__":
         batch_size=args.batch_size
     )
 
-    valid_files = []
     valid_dataset = None
     if args.valid_set_file:
-        for line in open(args.valid_set_file, 'r'):
-            if not line.startswith('#'):
-                filename = line.strip().split(',')[0]
-                valid_files.append(os.path.join(args.feature_path, filename.replace('.wav', '.tf')))
+        valid_files, _ = read_dataset_file(
+            args.valid_set_file,
+            prepend_path=args.feature_path,
+            replace_ext='.tf'
+        )
         valid_dataset = filelist2dataset(
             valid_files,
             feature_extractor.example_shape,

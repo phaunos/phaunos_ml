@@ -84,7 +84,7 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
                         out_file.write(f'{audio_filename},{file_label_set_str}\n')
 
 
-def read_dataset_file(dataset_file):
+def read_dataset_file(dataset_file, prepend_path='', replace_ext=''):
 
     filenames = []
     labels = []
@@ -93,7 +93,9 @@ def read_dataset_file(dataset_file):
         if line.startswith('#'):
             continue
         filename, file_label_set_str = line.strip().split(',')
-        filenames.append(filename)
+        if replace_ext:
+            filename = filename.replace('.wav', replace_ext)
+        filenames.append(os.path.join(prepend_path, filename))
         file_label_set = set([int(i) for i in file_label_set_str.split('#')])
         labels.append(file_label_set)
 
