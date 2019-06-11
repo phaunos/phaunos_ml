@@ -10,7 +10,7 @@ from scipy import interpolate
 import git
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
-from phaunos_ml.utils.tf_utils import serialized2data, filelist2dataset
+from phaunos_ml.utils.tf_utils import filelist2dataset
 from phaunos_ml.models import simple_cnn
 
 
