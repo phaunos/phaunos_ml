@@ -86,16 +86,16 @@ def train(
     tb = TensorBoard(log_dir=tb_log_dir)
 
     # Model checkpoint
-#    model_dir = join(write_dir, "models")
-#    pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
-#    mc = ModelCheckpoint(
-#        join(model_dir, "model.{epoch:02d}-{val_acc:.2f}.h5"),
-#        monitor='val_acc',
-#        verbose=1,
-#        save_best_only=True)
+    model_dir = join(write_dir, "models")
+    pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
+    mc = ModelCheckpoint(
+        join(model_dir, "model.{epoch:02d}-{val_acc:.2f}.h5"),
+        monitor='val_acc',
+        verbose=1,
+        save_best_only=True)
 
 #    callback_list = [lr_scheduler, tb, mc]
-    callback_list = [tb]
+    callback_list = [tb, mc]
 
 
     #########
