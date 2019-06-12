@@ -113,14 +113,14 @@ def serialized2data(serialized_data, feature_shape, class_list, nolabel_warning=
     return (data, one_hot)
 
 
-def filelist2dataset(files, example_shape, class_list, repeat=True, batch_size=32, nolabel_warning=True):
+def filelist2dataset(files, example_shape, class_list, training=True, batch_size=32, nolabel_warning=True):
     files = tf.convert_to_tensor(files, dtype=dtypes.string)
     files = tf.data.Dataset.from_tensor_slices(files)
 #    dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
     dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
     dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, nolabel_warning))
-    dataset = dataset.shuffle(10000)
-    if repeat:
+    if training:
+        dataset = dataset.shuffle(10000)
         dataset = dataset.repeat()  # Repeat the input indefinitely.
     dataset = dataset.batch(batch_size, drop_remainder=True)
     return dataset
