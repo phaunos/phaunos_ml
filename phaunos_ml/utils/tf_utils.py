@@ -57,8 +57,12 @@ def serialized2example(serialized_data, feature_shape):
     return tf.parse_single_example(serialized_data, features)
 
 
-def serialized2data(serialized_data, feature_shape, class_list, nolabel_warning=True):
-    """Generate features and labels.
+def serialized2data(
+        serialized_data,
+        feature_shape,
+        class_list,
+        training=True):
+    """Generate features, labels and, if training is False, filenames and times.
     Labels are indices of original label in class_list.
     """
 
@@ -99,7 +103,7 @@ def serialized2data(serialized_data, feature_shape, class_list, nolabel_warning=
     )[:,1]
 
     tf.cond(
-        tf.math.logical_and(nolabel_warning, tf.equal(tf.size(labels), 0)),
+        tf.math.logical_and(training, tf.equal(tf.size(labels), 0)),
         true_fn=lambda:myprint(tf.strings.format('File {} has no label', example['filename'])),
         false_fn=lambda:1
     )
@@ -110,15 +114,24 @@ def serialized2data(serialized_data, feature_shape, class_list, nolabel_warning=
         false_fn=lambda: tf.reduce_max(tf.one_hot(labels, tf.size(class_list)), 0)
     )
 
-    return (data, one_hot)
+    if training:
+        return (data, one_hot)
+    else:
+        return (data, one_hot, example['filename'], example['times'])
 
 
-def filelist2dataset(files, example_shape, class_list, training=True, batch_size=32, nolabel_warning=True):
+def filelist2dataset(
+        files,
+        example_shape,
+        class_list,
+        training=True,
+        batch_size=32):
+
     files = tf.convert_to_tensor(files, dtype=dtypes.string)
     files = tf.data.Dataset.from_tensor_slices(files)
 #    dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
     dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
-    dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, nolabel_warning))
+    dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
     if training:
         dataset = dataset.shuffle(10000)
         dataset = dataset.repeat()  # Repeat the input indefinitely.
