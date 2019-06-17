@@ -127,13 +127,17 @@ def filelist2dataset(
         training=True,
         batch_size=32):
 
-    files = tf.convert_to_tensor(files, dtype=dtypes.string)
-    files = tf.data.Dataset.from_tensor_slices(files)
-#    dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
-    dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
-    dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
     if training:
+        files = tf.convert_to_tensor(files, dtype=dtypes.string)
+        files = tf.data.Dataset.from_tensor_slices(files)
+        dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
+        # dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
+        dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
         dataset = dataset.shuffle(10000)
         dataset = dataset.repeat()  # Repeat the input indefinitely.
+    else:
+        dataset = tf.data.TFRecordDataset(files)
+        dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
+
     dataset = dataset.batch(batch_size, drop_remainder=True)
     return dataset
