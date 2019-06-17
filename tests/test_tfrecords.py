@@ -70,7 +70,7 @@ class TestTFRecord:
 
         # read tfrecord to data and label (model input)
         dataset = tf.data.TFRecordDataset([TFRECORD_FILE])
-        dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, 10))
+        dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, list(range(10))))
         it = dataset.make_one_shot_iterator()
         data_label_list = np.array([dl[1].numpy() for dl in it])
 
