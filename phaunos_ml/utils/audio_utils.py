@@ -32,14 +32,11 @@ def audiofile2tfrecord(
         annotation_set =  None
 
     if not chunk_duration:
-        out_filename = os.path.join(
-            out_dir,
-            audio_filename.replace('.wav', '.tf')
-        )
         audio2tfrecord(
             y,
             sr,
-            out_filename,
+            out_dir,
+            audio_filename.replace('.wav', '.tf'),
             feature_extractor,
             annotation_set
         )
@@ -54,13 +51,13 @@ def audiofile2tfrecord(
             start_str = f'{start_tuple[0]:02d}:{start_tuple[1]:02d}:{start_tuple[2]:02d}'
             end_str = f'{end_tuple[0]:02d}:{end_tuple[1]:02d}:{end_tuple[2]:02d}'
             out_filename = os.path.join(
-                out_dir,
                 audio_filename.replace('.wav', ''),
                 audio_filename.replace('.wav', f'_{start_str}-{end_str}.tf')
             )
             audio2tfrecord(
                 y[start_sample_ind:start_sample_ind+chunk_size],
                 sr,
+                out_dir,
                 out_filename,
                 feature_extractor,
                 annotation_set,
@@ -91,7 +88,8 @@ def audiofile2tfrecord(
 def audio2tfrecord(
         audio,
         sr,
-        out_filename,
+        out_dir,
+        filename,
         feature_extractor,
         annotation_set=None,
         start_time_offset=0
@@ -101,6 +99,7 @@ def audio2tfrecord(
     features = feature_extractor.process(audio, sr)
 
     # write tfrecord
+    out_filename = os.path.join(out_dir, filename)
     os.makedirs(os.path.dirname(out_filename), exist_ok=True)
     writer = tf.python_io.TFRecordWriter(out_filename)
     for i in range(features.shape[0]):
@@ -113,7 +112,7 @@ def audio2tfrecord(
             end_time = start_time + feature_extractor.actual_example_duration
         labels = get_labels_in_range(annotation_set, start_time, end_time) if annotation_set else set()
         sdata = serialize_data(
-            os.path.basename(out_filename),
+            filename,
             start_time,
             end_time,
             features[i],
