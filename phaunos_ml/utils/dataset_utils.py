@@ -9,6 +9,7 @@ from skmultilearn.model_selection import iterative_train_test_split
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
+from .tf_utils import filelist2dataset
 
 
 def dataset2tfrecords(
@@ -140,14 +141,35 @@ def split_dataset(dataset_file, test_size=0.2):
         print("Not implemented")
 
 
-def print_dataset_stat(dataset_file):
+def dataset_stat_per_file(dataset_file):
 
     filenames, labels = read_dataset_file(dataset_file)
     label_set = set.union(*labels)
 
-    counter = Counter([l for label_set in labels for l in label_set])
+    return Counter([l for label_set in labels for l in label_set])
 
-    print(f'{len(filenames)} files')
-    for k, v in sorted(counter.items()):
-        print(f'{k:3}: {v}')
+
+def dataset_stat_per_example(dataset_file, tfrecord_path, example_shape, class_list, batch_size=32):
+
+    files, labels = read_dataset_file(dataset_file, prepend_path=tfrecord_path, replace_ext='.tf')
+    dataset = filelist2dataset(
+        files,
+        example_shape,
+        class_list,
+        training=False,
+        batch_size=batch_size
+    )
+    it = dataset.make_one_shot_iterator()
+
+    n_batches = 0
+    n_examples_per_class = np.zeros((len(class_list),))
+
+    for _, one_hot, _, _  in it:
+        n_examples_per_class += np.count_nonzero(one_hot, axis=0)
+        n_batches += 1
+
+    return n_batches, n_examples_per_class
+
+
+
 
