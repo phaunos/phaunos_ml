@@ -40,9 +40,9 @@ def tfrecord2example(tfrecord_filename, feature_extractor):
     return [ex for ex in it]
 
 
-def tfrecord2data(tfrecord_filename, feature_extractor, n_classes):
+def tfrecord2data(tfrecord_filename, feature_extractor, class_list):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, n_classes))
+    dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, class_list))
     it = dataset.make_one_shot_iterator()
     return [ex for ex in it]
 
@@ -141,3 +141,5 @@ def filelist2dataset(
 
     dataset = dataset.batch(batch_size, drop_remainder=True)
     return dataset
+
+
