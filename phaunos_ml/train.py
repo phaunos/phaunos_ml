@@ -1,5 +1,6 @@
 import os
 import argparse
+import json
 import pathlib
 from time import time
 
@@ -106,42 +107,30 @@ def process(
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("feature_path", type=str,
-                        help="Path to the feature extractor config " +
-                        " and the tfrecord files.")
-    parser.add_argument("train_set_file", type=str,
-                        help="File containing the list of " +
-                        "the training audio files.")
-    parser.add_argument("n_train_batches", type=int,
-                        help="Number of training batches.")
-    parser.add_argument("out_dir", type=str,
-                        help="Output dir to write history, models and Tensorboard logs.")
-    parser.add_argument("--valid_set_file", type=str,
-                        help="File containing the list of " +
-                        "the validation audio files.")
-    parser.add_argument("--n_valid_batches", type=int,
-                        help="Number of valid batches.")
-    parser.add_argument("--batch_size", type=int,
-                        help="Batch size.", default=32)
+    parser.add_argument("config_file", type=str)
     args = parser.parse_args()
+
+    with open(args.config_file, "r") as config_file:
+        config = json.load(config_file)
+
 
     ########################################
     # create feature extractor from config #
     ########################################
 
     try:
-        config = os.path.join(args.feature_path, 'config.json')
-        feature_extractor = MelSpecExtractor.from_config(config)
+        featex_config = os.path.join(config['feature_path'], 'featex_config.json')
+        feature_extractor = MelSpecExtractor.from_config(featex_config)
     except FileNotFoundError as e:
-        raise FileNotFoundError(f'File {config} not found. Config files must be named "config.json" and located in <feature_path>') from e
+        raise FileNotFoundError(f'File {config} not found. Config files must be named "featex_config.json" and located in <feature_path>') from e
 
     ##############################################
     # get training and valid (optional) datasets #
     ##############################################
 
     train_files, labels = read_dataset_file(
-        args.train_set_file,
-        prepend_path=args.feature_path,
+        config['train_set_file'],
+        prepend_path=config['feature_path'],
         replace_ext='.tf'
     )
     class_list = sorted(list(set.union(*labels)))
@@ -149,28 +138,28 @@ if __name__ == "__main__":
         train_files,
         feature_extractor.example_shape,
         class_list,
-        batch_size=args.batch_size
+        batch_size=config['batch_size']
     )
 
     valid_dataset = None
-    if args.valid_set_file:
+    if config['valid_set_file']:
         valid_files, _ = read_dataset_file(
-            args.valid_set_file,
-            prepend_path=args.feature_path,
+            config['valid_set_file'],
+            prepend_path=config['feature_path'],
             replace_ext='.tf'
         )
         valid_dataset = filelist2dataset(
             valid_files,
             feature_extractor.example_shape,
             class_list,
-            batch_size=args.batch_size
+            batch_size=config['batch_size']
         )
 
     ##################################
     # write commit sha in out_dir #
     ##################################
     
-    out_dir = os.path.join(args.out_dir, str(int(time())))
+    out_dir = os.path.join(config['out_dir'], str(int(time())))
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
     with open(os.path.join(out_dir, "git_commit_sha.txt"), "w") as f:
         repo = git.Repo(
@@ -186,11 +175,12 @@ if __name__ == "__main__":
     process(
         feature_extractor,
         train_dataset,
-        args.n_train_batches,
+        config['n_train_batches'],
         out_dir,
         len(class_list),
         multilabel=True,
         valid_dataset=valid_dataset,
-        n_valid_batches=args.n_valid_batches,
-        batch_size=args.batch_size,
+        epochs=config['epochs'],
+        n_valid_batches=config['n_valid_batches'],
+        batch_size=config['batch_size'],
     )
