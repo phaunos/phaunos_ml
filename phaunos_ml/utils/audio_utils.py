@@ -7,6 +7,11 @@ from .tf_utils import serialize_data
 from .annotation_utils import read_annotation_file, get_labels_in_range
 
 
+"""
+Utils to convert audio files to tfrecords.
+"""
+
+
 def seconds2hms(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
@@ -21,7 +26,23 @@ def audiofile2tfrecord(
         annotation_filename=None,
         chunk_duration=None
 ):
-    
+    """ Compute fixed-size examples with features (and optionally labels)
+    from an audio file and write to a tfrecord.
+
+    Args:
+        root_path: root path of the audio files
+        audio_filename: filename of the audio file, including path relative to root_path
+        out_dir: path of the output directory
+        feature_extractor: see :func:`.feature_utils`
+        annotation_filename: annotation file, as described in :func:`.annotation_utils`
+            If set, labels are also written to the tfrecord
+        chunk_duration: if set, create examples for chunks of the audio file
+            (used for example in BirdCLEF 2019).
+    Returns:
+        Write one tfrecord (or multiple if chunk_duration is set) with the same
+        basename as audio_file.
+    """
+
     # read audio
     y, sr = librosa.load(os.path.join(root_path, audio_filename), sr=None)
 
