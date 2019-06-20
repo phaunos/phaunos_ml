@@ -120,7 +120,7 @@ def serialized2data(
         return (data, one_hot, example['filename'], example['times'])
 
 
-def filelist2tfdataset(
+def tfrecords2tfdataset(
         files,
         example_shape,
         class_list,

@@ -9,7 +9,7 @@ from skmultilearn.model_selection import iterative_train_test_split
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
-from .tf_utils import filelist2tfdataset
+from .tf_utils import tfrecords2tfdataset
 
 
 def dataset2tfrecords(
@@ -152,7 +152,7 @@ def dataset_stat_per_file(dataset_file):
 def dataset_stat_per_example(dataset_file, tfrecord_path, example_shape, class_list, batch_size=32):
 
     files, labels = read_dataset_file(dataset_file, prepend_path=tfrecord_path, replace_ext='.tf')
-    dataset = filelist2tfdataset(
+    dataset = tfrecords2tfdataset(
         files,
         example_shape,
         class_list,
