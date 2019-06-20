@@ -3,6 +3,11 @@ from tensorflow.python.framework import dtypes
 from tensorflow import keras
 
 
+"""
+Tensorflow serialization utils
+"""
+
+
 def _bytes_feature(value):
   """Returns a bytes_list from a string / byte."""
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
@@ -125,7 +130,9 @@ def tfrecords2tfdataset(
         example_shape,
         class_list,
         training=True,
-        batch_size=32):
+        batch_size=32
+):
+    """Returns a tensorflow's dataset from a list of tfrecords."""
 
     if training:
         files = tf.convert_to_tensor(files, dtype=dtypes.string)
