@@ -16,7 +16,7 @@ def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 
-# Can't get tf.logging.warning working...
+# Can't get tf.logging.warning to work...
 def myprint(message):
     tf.print(message)
     return 1
@@ -120,7 +120,7 @@ def serialized2data(
         return (data, one_hot, example['filename'], example['times'])
 
 
-def filelist2dataset(
+def filelist2tfdataset(
         files,
         example_shape,
         class_list,
