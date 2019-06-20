@@ -12,6 +12,13 @@ from .annotation_utils import read_annotation_file, ANN_EXT
 from .tf_utils import tfrecords2tfdataset
 
 
+"""
+Utils for handling dataset, being defined as a file containing a list of
+audio files, possibly with labels. The format of each line of a dataset file is:
+    audio_filename,label_id1#...#label_idN
+"""
+
+
 def dataset2tfrecords(
         root_path,
         dataset_file,
@@ -21,6 +28,23 @@ def dataset2tfrecords(
         annotation_dirname='annotations',
         with_labels=True
 ):
+    """ Compute fixed-size examples with features (and optionally labels)
+    for all audio files in the dataset file and write to tfrecords.
+
+    Args:
+        root_path: root path of the audio files
+        dataset_file: file containing a list of audio filenames, relative to root_path
+        out_dir: path of the output directory
+        feature_extractor: see :func:`.feature_utils`
+        audio_dirname: name of the directory containing audio files (see below)
+        annotation_dirname: name of the directory containing annotation files. Annotation files must
+            have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
+        with_labels: whether to include labels in the tfrecords.
+            
+    Returns:
+        Write tfrecords in out_dir.
+    """
+
     for line in tqdm(open(dataset_file, 'r').readlines()):
         if line.startswith('#'):
             continue
@@ -39,14 +63,32 @@ def dataset2tfrecords(
         )
 
 
-def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', ann_dirname='annotations', label_set=None):
+def create_subset(
+        root_path,
+        subset_path_list,
+        out_dir,
+        audio_dirname='audio',
+        annotation_dirname='annotations',
+        label_set=None
+):
     """Create a file with a list of audio_file.
-    If label_set is set, only files having at least one label from label_set are kept."""
+    
+    Args:
+        root_path: root path of the audio files
+        subset_path_list: list of directories containing audio and annotation files
+        out_dir: path of the output directory
+        audio_dirname: name of the directory containing audio files (see below)
+        annotation_dirname: name of the directory containing annotation files. Annotation files must
+            have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
+        label_set: if set, only files having at least one label from label_set are kept.
 
+    Returns:
+        Writes a dataset file of all audio files in subset_path_list with at least one label from label_set (if specified).
+    """
 
     # create a folder for this subset
     subset_name = 'subset_{}'.format(str(int(time.time())))
-    subset_filename = os.path.join(out_path, subset_name, f'{subset_name}.csv')
+    subset_filename = os.path.join(out_dir, subset_name, f'{subset_name}.csv')
     os.makedirs(os.path.dirname(subset_filename), exist_ok=True)
 
     with open(subset_filename, 'w') as out_file:
@@ -54,7 +96,7 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
             out_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
         for subset_path in subset_path_list:
             audio_path = os.path.join(root_path, subset_path, audio_dirname)
-            ann_path = os.path.join(root_path, subset_path, ann_dirname)
+            ann_path = os.path.join(root_path, subset_path, annotation_dirname)
             for file_path, _, filenames in os.walk(audio_path):
                 for filename in filenames:
                     add_file = True
@@ -86,6 +128,7 @@ def create_subset(root_path, subset_path_list, out_path, audio_dirname='audio', 
 
 
 def read_dataset_file(dataset_file, prepend_path='', replace_ext=''):
+    """Read dataset file"""
 
     filenames = []
     labels = []
@@ -142,6 +185,7 @@ def split_dataset(dataset_file, test_size=0.2):
 
 
 def dataset_stat_per_file(dataset_file):
+    """Counts files per label in dataset_file"""
 
     filenames, labels = read_dataset_file(dataset_file)
     label_set = set.union(*labels)
@@ -150,6 +194,21 @@ def dataset_stat_per_file(dataset_file):
 
 
 def dataset_stat_per_example(dataset_file, tfrecord_path, example_shape, class_list, batch_size=32):
+    """Counts batches per label in dataset_file.
+    
+    Args:
+        dataset_file: file containing a list of audio filenames, relative to root_path
+        tfrecord_path: directory containing the tfrecords
+        example shape: shape of the examples
+        class_list: list of the classes used in the dataset (the label ids in the tfrecords are
+            indices in this class_list)
+        batch_size: batch size
+
+    Returns:
+        n_batches: number of batches
+        n_examples_per_class: list of integers, such as n_examples_per_class[i] is the
+            number of examples for class class_list[i]    
+    """
 
     files, labels = read_dataset_file(dataset_file, prepend_path=tfrecord_path, replace_ext='.tf')
     dataset = tfrecords2tfdataset(
