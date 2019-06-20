@@ -5,8 +5,12 @@ from librosa.display import specshow
 import json
 
 
+"""
+Utils for extracting features and making fixed-sized examples.
+"""
+
+
 LOG_OFFSET = 1e-8
-MIN_LAST_CHUNK_DURATION = 0.2
 
 
 class NP_DTYPE(Enum):
@@ -16,6 +20,11 @@ class NP_DTYPE(Enum):
 
 
 class MelSpecExtractor:
+    """
+    Log mel spectrogram extractor.
+    See https://librosa.github.io/librosa/generated/librosa.feature.melspectrogram.html
+    for features parameters.
+    """
 
     def __init__(
             self, 
