@@ -89,7 +89,8 @@ def audiofile2tfrecord(
                                                                     # to avoid cumulative rounding errors of standard split.
 
         # last chunk
-        if (len(y) - start_sample_ind) / sr > MIN_LAST_CHUNK_DURATION:
+        min_last_chunk_duration = feature_extractor.actual_example_duration / 4 # arbitrary
+        if (len(y) - start_sample_ind) / sr > min_last_chunk_duration:
             start_time_offset = start_sample_ind / sr
             out_filename = os.path.join(
                 out_dir,
