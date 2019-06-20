@@ -39,7 +39,7 @@ def audiofile2tfrecord(
         chunk_duration: if set, create examples for chunks of the audio file
             (used for example in BirdCLEF 2019).
     Returns:
-        Write one tfrecord (or multiple if chunk_duration is set) with the same
+        Writes one tfrecord (or multiple if chunk_duration is set) in out_dir with the same
         basename as audio_file.
     """
 
