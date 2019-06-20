@@ -1,6 +1,17 @@
 import os
 
 
+"""
+Utils for handling simple objects holding information on an audio file annotation, namely:
+    - start_time, in seconds
+    - end_time, in seconds (or -1 if the annotation is for the whole audio file)
+    - label_set: label ids (set of int)
+
+Annotation sets are written/read to/from csv files with lines in the following format:
+    start_time,end_time,label_0#...#label_N
+"""
+
+
 ANN_EXT = '.ann'
 
 
@@ -53,8 +64,8 @@ class Annotation:
 
 def read_annotation_file(annotation_filename):
     """Return set of Annotation from csv file with lines in format
-    start_time,end_time,label_0#...#label_N
-        """
+        start_time,end_time,label_0#...#label_N
+    """
     annotation_set = set()
     for line in open(annotation_filename, 'r'):
         start_time_str, end_time_str, label_set_str = line.strip().split(',')
@@ -63,7 +74,9 @@ def read_annotation_file(annotation_filename):
 
 
 def write_annotation_file(annotation_set, out_filename):
-
+    """Write set of Annotation to csv file with lines in format
+        start_time,end_time,label_0#...#label_N
+    """
     os.makedirs(os.path.dirname(out_filename), exist_ok=True)
     with open(out_filename, 'w') as out_file:
         for ann in sorted(list(annotation_set)):
@@ -97,7 +110,9 @@ def set_annotation_labels(from_annotation_set, to_annotation_set, overlap_ratio=
         
     return to_annotation_set_new
 
+
 def get_labels_in_range(annotation_set, start_time, end_time, overlap_ratio=0.5):
+    """"Get all labels from an annotation set in a time range."""
     label_set = set()
     for ann in annotation_set:
         overlap = _get_overlap(ann.start_time,
@@ -110,11 +125,5 @@ def get_labels_in_range(annotation_set, start_time, end_time, overlap_ratio=0.5)
 
 
 def _get_overlap(start1, end1, start2, end2):
-    """Get overlap between the intervals [start1, end1] and [start2, end2].
-    Args:
-        start1 (float)
-        end1 (float)
-        start2 (float)
-        end2 (float)
-    """
+    """Get overlap between the intervals [start1, end1] and [start2, end2]."""
     return max(0, min(end1, end2) - max(start1, start2))
