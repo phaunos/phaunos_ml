@@ -1,6 +1,12 @@
 import os
 
-from phaunos_ml.utils.annotation_utils import Annotation, write_annotation_file
+from phaunos_ml.utils.annotation_utils import Annotation, write_annotation_file, ANN_EXT
+
+
+"""
+Utils for the Freesound challenge 2019.
+https://www.kaggle.com/c/freesound-audio-tagging-2019/
+"""
 
 
 def get_class_list(sample_submission_filename):
@@ -29,7 +35,7 @@ def generate_ann_files(train_path, class_list):
                 train_path,
                 f'train_{dataset}',
                 'annotations',
-                audio_filename.replace('wav', 'ann')
+                audio_filename.replace('.wav', ANN_EXT)
             )
 
             write_annotation_file([Annotation(label_set=label_set)], ann_filename)
