@@ -123,7 +123,7 @@ def audio2tfrecord(
     # write tfrecord
     out_filename = os.path.join(out_dir, filename)
     os.makedirs(os.path.dirname(out_filename), exist_ok=True)
-    writer = tf.python_io.TFRecordWriter(out_filename)
+    writer = tf.io.TFRecordWriter(out_filename)
     for i in range(features.shape[0]):
         start_time = start_time_offset + feature_extractor.actual_example_hop_duration * i
         # Last example's end time is set to original audio file duration
