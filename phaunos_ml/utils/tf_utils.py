@@ -42,14 +42,38 @@ def tfrecord2example(tfrecord_filename, feature_extractor):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
     dataset = dataset.map(lambda x: serialized2example(x, feature_extractor.example_shape))
     it = dataset.make_one_shot_iterator()
-    return [ex for ex in it]
+
+    if tf.executing_eagerly():
+        return [ex for ex in it]
+    else:
+        next_example = it.get_next()
+        examples = []
+        with tf.Session() as sess:
+            try:
+                while True:
+                    examples.append(sess.run(next_example))
+            except tf.errors.OutOfRangeError:
+                pass
+        return examples
 
 
 def tfrecord2data(tfrecord_filename, feature_extractor, class_list):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
     dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, class_list))
     it = dataset.make_one_shot_iterator()
-    return [ex for ex in it]
+
+    if tf.executing_eagerly():
+        return [ex for ex in it]
+    else:
+        next_example = it.get_next()
+        examples = []
+        with tf.Session() as sess:
+            try:
+                while True:
+                    examples.append(sess.run(next_example))
+            except tf.errors.OutOfRangeError:
+                pass
+        return examples
 
 
 def serialized2example(serialized_data, feature_shape):
