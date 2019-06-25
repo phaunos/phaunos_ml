@@ -40,7 +40,7 @@ def serialize_data(filename, start_time, end_time, data, labels):
 
 def tfrecord2example(tfrecord_filename, feature_extractor):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2example(x, feature_extractor.example_shape))
+    dataset = dataset.map(lambda x: serialized2example(x, feature_extractor.feature_shape))
     it = dataset.make_one_shot_iterator()
 
     if tf.executing_eagerly():
@@ -59,7 +59,7 @@ def tfrecord2example(tfrecord_filename, feature_extractor):
 
 def tfrecord2data(tfrecord_filename, feature_extractor, class_list):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.example_shape, class_list))
+    dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.feature_shape, class_list))
     it = dataset.make_one_shot_iterator()
 
     if tf.executing_eagerly():
@@ -97,7 +97,7 @@ def serialized2data(
 
     Args:
         serialized_data: data serialized using utils.tf_utils.serialize_data
-        feature_shape: shape of the features. Can be obtained with feature_extractor.example_shape (see utils.feature_utils)
+        feature_shape: shape of the features. Can be obtained with feature_extractor.feature_shape (see utils.feature_utils)
         class_list: list of class ids (used for one-hot encoding the labels)
         data_format: 'channels_first' (NCHW) or 'channels_last' (NHWC).
             Default is set to 'channels_first' because it is more optimal on GPU
@@ -163,7 +163,7 @@ def serialized2data(
 
 def tfrecords2tfdataset(
         files,
-        example_shape,
+        feature_shape,
         class_list,
         training=True,
         batch_size=32
@@ -175,12 +175,12 @@ def tfrecords2tfdataset(
         files = tf.data.Dataset.from_tensor_slices(files)
         dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
         # dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
-        dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
+        dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list, training))
         dataset = dataset.shuffle(10000)
         dataset = dataset.repeat()  # Repeat the input indefinitely.
     else:
         dataset = tf.data.TFRecordDataset(files)
-        dataset = dataset.map(lambda x: serialized2data(x, example_shape, class_list, training))
+        dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list, training))
 
     dataset = dataset.batch(batch_size, drop_remainder=True)
     return dataset

@@ -58,12 +58,12 @@ class MelSpecExtractor:
         return obj
 
     @property
-    def example_size(self):
+    def feature_size(self):
         return int(self.example_duration * self.sr / self.hop_length)
     
     @property
-    def example_shape(self):
-        return [self.n_mels, self.example_size]
+    def feature_shape(self):
+        return [self.n_mels, self.feature_size]
     
     @property
     def example_hop_size(self):
@@ -71,7 +71,7 @@ class MelSpecExtractor:
 
     @property
     def actual_example_duration(self):
-        return self.example_size * self.hop_length / self.sr
+        return self.feature_size * self.hop_length / self.sr
 
     @property
     def actual_example_hop_duration(self):
@@ -100,8 +100,8 @@ class MelSpecExtractor:
         
         # Create overlapping examples. Pad last example to cover the whole signal.
         n_frames = mel_sp.shape[1]
-        num_examples = int(np.ceil(max(0, (n_frames - self.example_size)) / self.example_hop_size) + 1)
-        pad_size = (num_examples - 1) * self.example_hop_size + self.example_size - n_frames
+        num_examples = int(np.ceil(max(0, (n_frames - self.feature_size)) / self.example_hop_size) + 1)
+        pad_size = (num_examples - 1) * self.example_hop_size + self.feature_size - n_frames
         mel_sp = np.pad(
             mel_sp,
             ((0, 0), (0, pad_size)),
@@ -111,7 +111,7 @@ class MelSpecExtractor:
         if self.log:
             mel_sp = np.log(mel_sp + LOG_OFFSET)
 
-        shape = (num_examples, mel_sp.shape[0], self.example_size)
+        shape = (num_examples, mel_sp.shape[0], self.feature_size)
         strides = (mel_sp.strides[1] * self.example_hop_size,) + mel_sp.strides
 
         return np.lib.stride_tricks.as_strided(mel_sp, shape=shape, strides=strides)

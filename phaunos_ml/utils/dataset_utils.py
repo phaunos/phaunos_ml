@@ -195,7 +195,7 @@ def dataset_stat_per_file(dataset_file):
     return Counter([l for label_set in labels for l in label_set])
 
 
-def dataset_stat_per_example(dataset_file, tfrecord_path, example_shape, class_list, batch_size=32):
+def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_list, batch_size=32):
     """Counts batches per label in dataset_file.
     
     Args:
@@ -215,7 +215,7 @@ def dataset_stat_per_example(dataset_file, tfrecord_path, example_shape, class_l
     files, labels = read_dataset_file(dataset_file, prepend_path=tfrecord_path, replace_ext='.tf')
     dataset = tfrecords2tfdataset(
         files,
-        example_shape,
+        feature_shape,
         class_list,
         training=False,
         batch_size=batch_size
