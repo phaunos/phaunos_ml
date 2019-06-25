@@ -78,12 +78,12 @@ def tfrecord2data(tfrecord_filename, feature_extractor, class_list):
 
 def serialized2example(serialized_data, feature_shape):
     features = {
-        'filename': tf.FixedLenFeature([], tf.string),
-        'times': tf.FixedLenFeature([2], tf.float32),
-        'data': tf.FixedLenFeature(feature_shape, tf.float32),
-        'labels': tf.FixedLenFeature([], tf.string),
+        'filename': tf.io.FixedLenFeature([], tf.string),
+        'times': tf.io.FixedLenFeature([2], tf.float32),
+        'data': tf.io.FixedLenFeature(feature_shape, tf.float32),
+        'labels': tf.io.FixedLenFeature([], tf.string),
     }
-    return tf.parse_single_example(serialized_data, features)
+    return tf.io.parse_single_example(serialized_data, features)
 
 
 def serialized2data(
@@ -96,12 +96,12 @@ def serialized2data(
     """
 
     features = {
-        'filename': tf.FixedLenFeature([], tf.string),
-        'times': tf.FixedLenFeature([2], tf.float32),
-        'data': tf.FixedLenFeature(feature_shape, tf.float32),
-        'labels': tf.FixedLenFeature([], tf.string),
+        'filename': tf.io.FixedLenFeature([], tf.string),
+        'times': tf.io.FixedLenFeature([2], tf.float32),
+        'data': tf.io.FixedLenFeature(feature_shape, tf.float32),
+        'labels': tf.io.FixedLenFeature([], tf.string),
     }
-    example = tf.parse_single_example(serialized_data, features)
+    example = tf.io.parse_single_example(serialized_data, features)
 
     # reshape data to channels_first format
     data = tf.reshape(example['data'], (1, feature_shape[0], feature_shape[1]))
