@@ -126,6 +126,8 @@ def create_subset(
                         file_label_set_str = '#'.join(str(i) for i in file_label_set)
                         out_file.write(f'{audio_filename},{file_label_set_str}\n')
 
+    return subset_filename
+
 
 def read_dataset_file(dataset_file, prepend_path='', replace_ext=''):
     """Read dataset file"""
