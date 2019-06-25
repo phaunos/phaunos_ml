@@ -90,9 +90,18 @@ def serialized2data(
         serialized_data,
         feature_shape,
         class_list,
+        data_format='channels_first',
         training=True):
     """Generate features, labels and, if training is False, filenames and times.
     Labels are indices of original label in class_list.
+
+    Args:
+        serialized_data: data serialized using utils.tf_utils.serialize_data
+        feature_shape: shape of the features. Can be obtained with feature_extractor.example_shape (see utils.feature_utils)
+        class_list: list of class ids (used for one-hot encoding the labels)
+        data_format: 'channels_first' (NCHW) or 'channels_last' (NHWC).
+            Default is set to 'channels_first' because it is more optimal on GPU
+            (https://www.tensorflow.org/guide/performance/overview#data_formats).
     """
 
     features = {
@@ -104,7 +113,10 @@ def serialized2data(
     example = tf.io.parse_single_example(serialized_data, features)
 
     # reshape data to channels_first format
-    data = tf.reshape(example['data'], (1, feature_shape[0], feature_shape[1]))
+    if data_format == 'channels_first':
+        data = tf.reshape(example['data'], (1, feature_shape[0], feature_shape[1]))
+    else:
+        data = tf.reshape(example['data'], (feature_shape[0], feature_shape[1], 1))
 
     # one-hot encode labels
     labels = tf.strings.to_number(
