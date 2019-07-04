@@ -6,6 +6,7 @@ from scipy.sparse import lil_matrix
 import time
 from tqdm import tqdm
 from skmultilearn.model_selection import iterative_train_test_split
+import tensorflow as tf
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
@@ -181,6 +182,7 @@ def split_dataset(dataset_file, test_size=0.2):
                     file_label_list = sparse.find(y[i])[1]
                     file_label_str = '#'.join([str(label_list[ind]) for ind in file_label_list])
                     set_file.write(f'{X[i,0]},{file_label_str}\n')
+                print(f'{set_filename} written')
         
     else:
         print("Not implemented")
@@ -225,9 +227,20 @@ def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_l
     n_batches = 0
     n_examples_per_class = np.zeros((len(class_list),))
 
-    for _, one_hot, _, _  in it:
-        n_examples_per_class += np.count_nonzero(one_hot, axis=0)
-        n_batches += 1
+    if tf.executing_eagerly():
+        for _, one_hot, _, _  in it:
+            n_examples_per_class += np.count_nonzero(one_hot, axis=0)
+            n_batches += 1
+    else:
+        next_example = it.get_next()
+        with tf.Session() as sess:
+            try:
+                while True:
+                    _, one_hot, _, _ = sess.run(next_example)
+                    n_examples_per_class += np.count_nonzero(one_hot, axis=0)
+                    n_batches += 1
+            except tf.errors.OutOfRangeError:
+                pass
 
     return n_batches, n_examples_per_class
 
