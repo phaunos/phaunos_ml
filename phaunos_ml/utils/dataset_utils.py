@@ -225,7 +225,7 @@ def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_l
     it = dataset.make_one_shot_iterator()
 
     n_batches = 0
-    n_examples_per_class = np.zeros((len(class_list),))
+    n_examples_per_class = np.zeros((len(class_list),), dtype=np.int32)
 
     if tf.executing_eagerly():
         for _, one_hot, _, _  in it:
