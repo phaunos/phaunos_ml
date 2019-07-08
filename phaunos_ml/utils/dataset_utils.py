@@ -5,6 +5,7 @@ from scipy import sparse
 from scipy.sparse import lil_matrix
 import time
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
 import tensorflow as tf
 
@@ -163,7 +164,7 @@ def split_dataset(dataset_file, test_size=0.2):
 
     if multilabel:
 
-        # adapt data to iterative_train_test_split input
+        # adapt data to iterative_train_test_split arguments
         filenames = np.expand_dims(np.array(filenames), axis=1)
         sparse_labels = lil_matrix((len(filenames), len(label_list)))
         for i, file_label_set in enumerate(labels):
@@ -185,7 +186,25 @@ def split_dataset(dataset_file, test_size=0.2):
                 print(f'{set_filename} written')
         
     else:
-        print("Not implemented")
+
+        # adapt data to _train_test_split arguments
+        labels = [list(l)[0] for l in labels]
+        
+        # multi-label stratified data split
+        X_train, X_test, y_train, y_test = train_test_split(
+            filenames,
+            labels,
+            test_size=test_size,
+            stratify=labels)
+
+        # write dataset files
+        for set_name, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
+            set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
+            with open(set_filename, 'w') as set_file:
+                set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
+                for filename, label in zip(X, y):
+                    set_file.write(f'{filename},{label}\n')
+                print(f'{set_filename} written')
 
 
 def dataset_stat_per_file(dataset_file):
