@@ -85,7 +85,7 @@ def process(config_filename):
     # write commit sha in out_dir #
     ##################################
     
-    out_dir = os.path.join(config['out_dir'], str(int(time())))
+    out_dir = os.path.join(config['out_dir'], 'run_' + str(int(time())))
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
     with open(os.path.join(out_dir, "git_commit_sha.txt"), "w") as f:
         repo = git.Repo(
