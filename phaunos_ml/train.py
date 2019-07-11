@@ -32,8 +32,6 @@ def process(config_filename):
             "out_dir" : output directory to write log files, git commit #, models...
             "valid_set_file" (optional) : validation dataset file, as defined in phaunos_ml.utils.dataset_utils
             "n_valid_batches" (optional) : number of validation batches (can be counted by phaunos_ml.utils.dataset_utils.dataset_stat_per_example)
-
-
             
     """
 
@@ -117,7 +115,8 @@ def process(config_filename):
 
     model.compile(loss=loss,
                   optimizer=optimizer,
-                  metrics=[tf.keras.metrics.BinaryAccuracy()])
+                  metrics=[keras.metrics.BinaryAccuracy() \
+                           if config['multilabel'] else keras.metrics.CategoricalAccuracy()])
 
 
     ########################
@@ -140,8 +139,11 @@ def process(config_filename):
     model_dir = os.path.join(out_dir, "models")
     pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
     mc = ModelCheckpoint(
-        os.path.join(model_dir, "model.{epoch:02d}-{binary_accuracy:.2f}.h5"),
-        monitor='binary_accuracy',
+        os.path.join(model_dir, 'model.{epoch:02d}-' +
+                     '{binary_accuracy:.2f}.h5' if config['multilabel'] else \
+                     '{categorical_accuracy:.2f}.h5'),
+        monitor='binary_accuracy' if config['multilabel'] \
+            else 'categorical_accuracy',
         verbose=1,
         save_best_only=True)
 
