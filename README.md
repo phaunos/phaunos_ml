@@ -1,4 +1,4 @@
-Utilities for machine learning with audio data, including:
+Tools for machine learning with audio data, including:
 - feature extraction (only mel spectrogram for now)
 - dataset management (train/test split, create subsets...)
 - saving features as TFRecord files
