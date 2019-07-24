@@ -109,6 +109,8 @@ def process(config_filename):
     # Define the callbacks #
     ########################
 
+    out_dir = os.path.join(config['out_dir'], 'run_' + str(int(time())))
+    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
     # Learning rate scheduler
 #    lr_interpolate = interpolate.interp1d([0, 34, 54], [0.01, 0.0001, 1e-05], kind='linear')

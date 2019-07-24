@@ -1,10 +1,11 @@
 import os
-from collections import Counter
+import time
+from collections import Counter, defaultdict
+from tqdm import tqdm
+import audioread
 import numpy as np
 from scipy import sparse
 from scipy.sparse import lil_matrix
-import time
-from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
 import tensorflow as tf
@@ -207,13 +208,24 @@ def split_dataset(dataset_file, test_size=0.2):
                 print(f'{set_filename} written')
 
 
-def dataset_stat_per_file(dataset_file):
-    """Counts files per label in dataset_file"""
+def dataset_stat_per_file(root_path, dataset_file):
+    """Counts files and sum file durations per label in dataset"""
+
+    d_num = defaultdict(int)
+    d_dur = defaultdict(float)
 
     filenames, labels = read_dataset_file(dataset_file)
-    label_set = set.union(*labels)
-
-    return Counter([l for label_set in labels for l in label_set])
+    for filename, label in tqdm(zip(filenames, labels)):
+        for l in label:
+            d_num[l] += 1
+            audio = audioread.audio_open(
+                os.path.join(
+                    root_path,
+                    filename
+                ))
+            d_dur[l] += audio.duration
+        
+    return d_num, d_dur
 
 
 def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_list, batch_size=32):
