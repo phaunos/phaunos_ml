@@ -128,10 +128,10 @@ def process(config_filename):
     pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
     mc = ModelCheckpoint(
         os.path.join(model_dir, 'model.{epoch:02d}-' +
-                     '{binary_accuracy:.2f}.h5' if config['multilabel'] else \
-                     '{categorical_accuracy:.2f}.h5'),
-        monitor='binary_accuracy' if config['multilabel'] \
-            else 'categorical_accuracy',
+                     '{val_binary_accuracy:.2f}.h5' if config['multilabel'] else \
+                     '{val_categorical_accuracy:.2f}.h5'),
+        monitor='val_binary_accuracy' if config['multilabel'] \
+            else 'val_categorical_accuracy',
         verbose=1,
         save_best_only=True)
 
