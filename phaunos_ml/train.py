@@ -8,7 +8,6 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import LearningRateScheduler, TensorBoard, ModelCheckpoint
 from scipy import interpolate
-import git
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
 from phaunos_ml.utils.dataset_utils import read_dataset_file
@@ -29,7 +28,7 @@ def process(config_filename):
             "multilabel" : 'true' or 'false'. Whether an example can have multiple labels.
             "batch_size"
             "epochs" : number of training epochs
-            "out_dir" : output directory to write log files, git commit #, models...
+            "out_dir" : output directory to write log files, models...
             "valid_set_file" (optional) : validation dataset file, as defined in phaunos_ml.utils.dataset_utils
             "n_valid_batches" (optional) : number of validation batches (can be counted by phaunos_ml.utils.dataset_utils.dataset_stat_per_example)
             
@@ -78,19 +77,6 @@ def process(config_filename):
             class_list,
             batch_size=config['batch_size']
         )
-
-    ##################################
-    # write commit sha in out_dir #
-    ##################################
-    
-    out_dir = os.path.join(config['out_dir'], 'run_' + str(int(time())))
-    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(out_dir, "git_commit_sha.txt"), "w") as f:
-        repo = git.Repo(
-            os.path.dirname(os.path.abspath(__file__)),
-            search_parent_directories=True
-        )
-        f.write(repo.head.object.hexsha)
 
     ###############
     # build model #
