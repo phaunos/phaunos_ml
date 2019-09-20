@@ -2,7 +2,6 @@ import os
 import tensorflow as tf
 import librosa
 
-from .feature_utils import MelSpecExtractor
 from .tf_utils import serialize_data
 from .annotation_utils import read_annotation_file, get_labels_in_range
 
