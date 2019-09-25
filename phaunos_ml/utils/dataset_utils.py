@@ -27,6 +27,8 @@ def dataset2tfrecords(
         dataset_file,
         out_dir,
         feature_extractor,
+        activity_detector=None,
+        min_activity_dur=None,
         audio_dirname='audio',
         annotation_dirname='annotations',
         with_labels=True
@@ -62,7 +64,9 @@ def dataset2tfrecords(
             audio_filename,
             out_dir,
             feature_extractor,
-            annotation_filename=annotation_filename
+            annotation_filename=annotation_filename,
+            activity_detector=activity_detector,
+            min_activity_dur=min_activity_dur
         )
 
 

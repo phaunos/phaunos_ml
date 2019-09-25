@@ -130,18 +130,18 @@ class MelSpecExtractor:
         mask_segments = np.ones(num_examples, dtype=np.bool)
 
         times = []
-        if not (mask is None):
-            start = 0
-            for i in range(num_examples):
-                end = start + self.feature_size - 1
-                times.append((start/self.feature_rate, end/self.feature_rate))
+        start = 0
+        for i in range(num_examples):
+            end = start + self.feature_size - 1
+            times.append((start/self.feature_rate, end/self.feature_rate))
+            if not (mask is None):
                 start_mask = int(start / self.feature_rate * mask_sr)
                 end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
                 # count positive mask values in the segment
                 n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
                 # if the total duration of the positive mask frames is above the threshold, set segment mask to True
                 mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
-                start += self.example_hop_size
+            start += self.example_hop_size
         
         return segments, mask_segments, times
 
@@ -251,18 +251,18 @@ class AudioSegmentExtractor:
 
         mask_segments = np.ones(num_segments, dtype=np.bool)
         times = []
-        if not (mask is None):
-            start = 0
-            for i in range(num_segments):
-                end = start + self.feature_size - 1
-                times.append((start/self.sr, end/self.sr))
+        start = 0
+        for i in range(num_segments):
+            end = start + self.feature_size - 1
+            times.append((start/self.sr, end/self.sr))
+            if not (mask is None):
                 start_mask = int(start / self.sr * mask_sr)
                 end_mask = int(min(len(mask) - 1, end / self.sr * mask_sr))
                 # count positive mask values in the segment
                 n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
                 # if the total duration of the positive mask frames is above the threshold, set segment mask to True
                 mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
-                start += self.example_hop_size
+            start += self.example_hop_size
 
         return segments, mask_segments, times
 
