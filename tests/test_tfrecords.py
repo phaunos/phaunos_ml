@@ -14,7 +14,7 @@ from phaunos_ml.utils.tf_utils import serialized2example, serialized2data
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 WAV_FILE = 'chirp.wav'
 ANNOTATION_FILE = os.path.join(DATA_PATH, 'chirp.ann')
-TFRECORD_FILE = os.path.join(DATA_PATH, 'chirp.tf')
+TFRECORD_FILE = os.path.join(DATA_PATH, 'positive', 'chirp.tf')
 
 
 class TestTFRecord:
@@ -38,7 +38,7 @@ class TestTFRecord:
             example_duration=0.4,
             example_hop_duration=0.1
         )
-        features = feature_extractor.process(audio, sr)
+        features, _, _ = feature_extractor.process(audio, sr)
 
         # write tfrecord file
         audiofile2tfrecord(
