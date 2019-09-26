@@ -25,7 +25,7 @@ def audiofile2tfrecord(
         annotation_filename=None,
         chunk_duration=None,
         activity_detector=None,
-        min_activity_dur=0
+        min_activity_dur=None
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from an audio file and write to a tfrecord.

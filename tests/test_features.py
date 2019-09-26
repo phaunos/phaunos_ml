@@ -37,7 +37,7 @@ class TestMelSpecExtractor:
             example_hop_duration=0.1
         )
         audio, sr = audio_data
-        features = ex.process(audio, sr)
+        features, _, _ = ex.process(audio, sr)
 
         assert np.array_equal(features[10,:,ex.example_hop_size], features[11,:,0])
 
