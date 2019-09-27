@@ -23,7 +23,6 @@ def audiofile2tfrecord(
         out_dir,
         feature_extractor,
         annotation_filename=None,
-        chunk_duration=None,
         activity_detector=None,
         min_activity_dur=None
 ):
@@ -37,11 +36,8 @@ def audiofile2tfrecord(
         feature_extractor: see :func:`.feature_utils`
         annotation_filename: annotation file, as described in :func:`.annotation_utils`
             If set, labels are also written to the tfrecord
-        chunk_duration: if set, create examples for chunks of the audio file
-            (used for example in BirdCLEF 2019).
     Returns:
-        Writes one tfrecord (or multiple if chunk_duration is set) in out_dir with the same
-        basename as audio_file.
+        Writes one tfrecord in out_dir with the same basename as audio_file.
     """
 
     # read audio
@@ -62,62 +58,16 @@ def audiofile2tfrecord(
         fb_mask_sr = None
 
 
-    if not chunk_duration:
-        audio2tfrecord(
-            y,
-            sr,
-            out_dir,
-            audio_filename.replace('.wav', '.tf'),
-            feature_extractor,
-            annotation_set,
-            fb_mask=fb_mask,
-            fb_mask_sr=fb_mask_sr,
-            mask_min_dur=min_activity_dur
-        )
-    else:
-        chunk_ind = 0
-        chunk_size = int(chunk_duration * sr)
-        start_sample_ind = 0
-        while start_sample_ind + chunk_size < len(y):
-            start_time_offset = start_sample_ind / sr
-            start_tuple = seconds2hms(int(start_time_offset))
-            end_tuple = seconds2hms(int(start_time_offset + chunk_duration))
-            start_str = f'{start_tuple[0]:02d}:{start_tuple[1]:02d}:{start_tuple[2]:02d}'
-            end_str = f'{end_tuple[0]:02d}:{end_tuple[1]:02d}:{end_tuple[2]:02d}'
-            out_filename = os.path.join(
-                audio_filename.replace('.wav', ''),
-                audio_filename.replace('.wav', f'_{start_str}-{end_str}.tf')
-            )
-            audio2tfrecord(
-                y[start_sample_ind:start_sample_ind+chunk_size],
-                sr,
-                out_dir,
-                out_filename,
-                feature_extractor,
-                annotation_set,
-                start_time_offset=start_time_offset
-            )
-            chunk_ind += 1
-            start_sample_ind = int(chunk_ind * chunk_duration * sr) # This is the only point of using chunks,
-                                                                    # to avoid cumulative rounding errors of standard split.
-
-        # last chunk
-        min_last_chunk_duration = feature_extractor.actual_example_duration / 4 # arbitrary
-        if (len(y) - start_sample_ind) / sr > min_last_chunk_duration:
-            start_time_offset = start_sample_ind / sr
-            out_filename = os.path.join(
-                out_dir,
-                audio_filename.replace('.wav', ''),
-                audio_filename.replace('.wav', f'_{end_str}-end.tf')
-            )
-            audio2tfrecord(
-                y[start_sample_ind:],
-                sr,
-                out_filename,
-                annotation_set,
-                feature_extractor,
-                start_time_offset=start_time_offset
-            )
+    audio2tfrecord(
+        y,
+        sr,
+        out_dir,
+        audio_filename.replace('.wav', '.tf'),
+        feature_extractor,
+        annotation_set,
+        fb_mask=fb_mask,
+        fb_mask_sr=fb_mask_sr,
+        mask_min_dur=min_activity_dur)
 
 
 def audio2tfrecord(
