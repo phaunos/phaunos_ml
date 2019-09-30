@@ -12,7 +12,7 @@ from phaunos_ml.utils.annotation_utils import Annotation, write_annotation_file,
 def get_class_list(species_filename):
     class_codes = sorted([line.split(',')[0] for line in open(species_filename, 'r')][1:])
     assert len(class_codes) == 659, 'Wrong number of classes (must be 659)'
-    return sorted(class_codes)
+    return class_codes
 
 
 def timecode2seconds(timecode):
