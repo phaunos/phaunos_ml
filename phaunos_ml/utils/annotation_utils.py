@@ -62,6 +62,18 @@ class Annotation:
         return f'start_time: {self.start_time}, end_time: {self.end_time}, label_set: {self.label_set}'
 
 
+def get_class_list(species_filename):
+    """Return class set of the dataset as a list of sorted class ids.
+    species_filename must be in the format
+
+    <class_id>,<class_name>,
+    ...,
+    <class_id>,<class_name>,
+    <class_id>,<class_name>
+    """
+    return sorted([line.split(',')[0] for line in open(species_filename, 'r')])
+
+
 def read_annotation_file(annotation_filename):
     """Return set of Annotation from csv file with lines in format
         start_time,end_time,label_0#...#label_N
