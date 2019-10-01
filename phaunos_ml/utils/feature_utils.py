@@ -3,6 +3,7 @@ from enum import Enum
 import librosa
 from librosa.display import specshow
 import json
+import matplotlib.pyplot as plt
 
 
 """
@@ -265,7 +266,9 @@ class AudioSegmentExtractor:
             start += self.example_hop_size
 
         return segments, mask_segments, times
-
+        
+    def plot(self, data):
+        return plt.plot(np.arange(len(data))/self.sr, data)
 
     def __repr__(self):
         t = type(self)        
