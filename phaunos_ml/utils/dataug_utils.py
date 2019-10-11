@@ -69,9 +69,12 @@ def time_warp(data, w=80):
 
     Args:
         data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        w: warp parameter (see above)
     """
 
-    _, n_freq_bins, n_time_bins, _ = tf.shape(data)
+
+
+    _, n_freq_bins, n_time_bins, channels = tf.shape(data)
 
     # pick a random point along the time axis in [w,n_time_bins-w]
     t = tf.random.uniform(
@@ -101,3 +104,53 @@ def time_warp(data, w=80):
     ctl_pt_dst = tf.expand_dims(tf.stack([ctl_pt_freqs, ctl_pt_times_dst], axis=-1), 0)
 
     return sparse_image_warp(data, ctl_pt_src, ctl_pt_dst, num_boundary_points=1)[0]
+
+
+def time_mask(data, tmax):
+    """Mask t consecutive time bins from t0 to t0+t where t is randomly picked in [0,tmax[
+    and t0 is randomly picked in [0,n_time_bins-t[
+
+    Args:
+        data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        tmax: mask parameter (see above)
+    """
+
+    _, n_freq_bins, n_time_bins, _ = tf.shape(data)
+
+    # pick random t and t0
+    t = tf.random.uniform(shape=(), minval=0, maxval=tmax, dtype=tf.dtypes.int32)
+    t0 = tf.random.uniform(shape=(), minval=0, maxval=n_time_bins - t, dtype=tf.dtypes.int32)
+
+    # build mask
+    mask = tf.concat([
+        tf.ones(shape=[1, n_freq_bins, t0, 1]),
+        tf.zeros(shape=[1, n_freq_bins, t, 1]),
+        tf.ones(shape=[1, n_freq_bins, n_time_bins-t-t0, 1])
+    ], axis=2)
+
+    return data * mask
+
+
+def frequency_mask(data, fmax):
+    """Mask t consecutive frequency bins from f0 to f0+f where f is randomly picked in [0,fmax[
+    and f0 is randomly picked in [0,n_freq_bins-f[
+
+    Args:
+        data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        tmax: mask parameter (see above)
+    """
+
+    _, n_freq_bins, n_time_bins, _ = tf.shape(data)
+
+    # pick random t and t0
+    f = tf.random.uniform(shape=(), minval=0, maxval=fmax, dtype=tf.dtypes.int32)
+    f0 = tf.random.uniform(shape=(), minval=0, maxval=n_freq_bins - f, dtype=tf.dtypes.int32)
+
+    # build mask
+    mask = tf.concat([
+        tf.ones(shape=[1, f0, n_time_bins, 1]),
+        tf.zeros(shape=[1, f, n_time_bins, 1]),
+        tf.ones(shape=[1, n_freq_bins-f-f0, n_time_bins, 1])
+    ], axis=1)
+
+    return data * mask
