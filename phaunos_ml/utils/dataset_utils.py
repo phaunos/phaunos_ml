@@ -143,7 +143,7 @@ def read_dataset_file(dataset_file, prepend_path='', replace_ext=''):
     labels = []
 
     for line in open(dataset_file, 'r'):
-        if line.startswith('#'):
+        if line.startswith('#') or not line.strip():
             continue
         filename, file_label_set_str = line.strip().split(',')
         if replace_ext:
