@@ -17,8 +17,7 @@ from .tf_utils import tfrecords2tfdataset
 
 """
 Utils for handling dataset, being defined as a file containing a list of
-audio files, possibly with labels. The format of each line of a dataset file is:
-    audio_filename,label_id1#...#label_idN
+audio files and, optionally, annotation files.
 """
 
 
@@ -53,7 +52,7 @@ def dataset2tfrecords(
     for line in tqdm(open(dataset_file, 'r').readlines()):
         if line.startswith('#'):
             continue
-        audio_filename = line.strip().split(',')[0]
+        audio_filename = line.strip()
         if with_labels:
             annotation_filename = audio_filename.replace(audio_dirname, annotation_dirname) \
                 .replace('.wav', ANN_EXT)
@@ -114,9 +113,7 @@ def create_subset(
                         os.path.relpath(file_path, audio_path),
                         filename.replace('.wav', ANN_EXT))
                     ann_set = read_annotation_file(ann_filename)
-                    file_label_set = set()
-                    for ann in ann_set:
-                        file_label_set.update(ann.label_set)
+                    file_label_set = set.union(*map(lambda x:set(x.label_set), ann_set))
 
                     # get intersection
                     if label_set:
@@ -130,35 +127,55 @@ def create_subset(
                             os.path.relpath(file_path, root_path),
                             filename
                         )
-                        file_label_set_str = '#'.join(str(i) for i in file_label_set)
-                        out_file.write(f'{audio_filename},{file_label_set_str}\n')
+                        out_file.write(f'{audio_filename}\n')
 
     return subset_filename
 
 
-def read_dataset_file(dataset_file, prepend_path='', replace_ext=''):
+def read_dataset_file(
+        root_path,
+        dataset_file,
+        audio_dirname='audio',
+        annotation_dirname='annotations',
+        replace_ext=''):
+
     """Read dataset file"""
 
-    filenames = []
+    audio_filenames = []
     labels = []
 
     for line in open(dataset_file, 'r'):
         if line.startswith('#') or not line.strip():
             continue
-        filename, file_label_set_str = line.strip().split(',')
+        audio_filename = line.strip().split(',')[0]
+
+        # get annotation labels
+        ann_filename = os.path.join(
+            root_path,
+            audio_filename.replace(audio_dirname, annotation_dirname).replace('.wav', ANN_EXT))
+        ann_set = read_annotation_file(ann_filename)
+        labels.append(set.union(*map(lambda x:set(x.label_set), ann_set)))
+
         if replace_ext:
-            filename = filename.replace('.wav', replace_ext)
-        filenames.append(os.path.join(prepend_path, filename))
-        file_label_set = set([int(i) for i in file_label_set_str.split('#')])
-        labels.append(file_label_set)
+            audio_filename = audio_filename.replace('.wav', replace_ext)
+        audio_filenames.append(audio_filename)
 
-    return filenames, labels
+    return audio_filenames, labels
 
 
-def split_dataset(dataset_file, test_size=0.2):
+def split_dataset(
+        root_path,
+        dataset_file,
+        audio_dirname='audio',
+        annotation_dirname='annotations',
+        test_size=0.2):
     """Split dataset in train and test sets (stratified)."""
 
-    filenames, labels = read_dataset_file(dataset_file)
+    filenames, labels = read_dataset_file(
+        root_path,
+        dataset_file,
+        audio_dirname=audio_dirname,
+        annotation_dirname=annotation_dirname)
     label_set = set.union(*labels)
     label_list = sorted(list(label_set))
 
@@ -180,14 +197,12 @@ def split_dataset(dataset_file, test_size=0.2):
         X_train, y_train, X_test, y_test = iterative_train_test_split(np.array(filenames), sparse_labels, test_size=test_size)
 
         # write dataset files
-        for set_name, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
+        for set_name, X in [('train', X_train), ('test', X_test)]:
             set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
             with open(set_filename, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
                 for i in range(X.shape[0]):
-                    file_label_list = sparse.find(y[i])[1]
-                    file_label_str = '#'.join([str(label_list[ind]) for ind in file_label_list])
-                    set_file.write(f'{X[i,0]},{file_label_str}\n')
+                    set_file.write(f'{X[i,0]}\n')
                 print(f'{set_filename} written')
         
     else:
@@ -203,22 +218,31 @@ def split_dataset(dataset_file, test_size=0.2):
             stratify=labels)
 
         # write dataset files
-        for set_name, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
+        for set_name, X in [('train', X_train), ('test', X_test)]:
             set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
             with open(set_filename, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
-                for filename, label in zip(X, y):
-                    set_file.write(f'{filename},{label}\n')
+                for filename in X:
+                    set_file.write(f'{filename}\n')
                 print(f'{set_filename} written')
 
 
-def dataset_stat_per_file(root_path, dataset_file):
+def dataset_stat_per_file(
+        root_path,
+        dataset_file,
+        audio_dirname='audio',
+        annotation_dirname='annotations'):
     """Counts files and sum file durations per label in dataset"""
 
     d_num = defaultdict(int)
     d_dur = defaultdict(float)
 
-    filenames, labels = read_dataset_file(dataset_file)
+    filenames, labels = read_dataset_file(
+        root_path,
+        dataset_file,
+        audio_dirname=audio_dirname,
+        annotation_dirname=annotation_dirname
+    )
     for filename, label in tqdm(zip(filenames, labels)):
         for l in label:
             d_num[l] += 1
@@ -232,7 +256,15 @@ def dataset_stat_per_file(root_path, dataset_file):
     return d_num, d_dur
 
 
-def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_list, batch_size=32):
+def dataset_stat_per_example(
+        root_path,
+        dataset_file,
+        tfrecord_path,
+        feature_shape,
+        class_list,
+        batch_size=32,
+        audio_dirname='audio',
+        annotation_dirname='annotations'):
     """Counts batches per label in dataset_file.
     
     Args:
@@ -249,7 +281,15 @@ def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_l
             number of examples for class class_list[i]    
     """
 
-    files, labels = read_dataset_file(dataset_file, prepend_path=tfrecord_path, replace_ext='.tf')
+    files, labels = read_dataset_file(
+        root_path,
+        dataset_file,
+        audio_dirname=audio_dirname,
+        annotation_dirname=annotation_dirname,
+        replace_ext='.tf')
+    
+    files = [os.path.join(tfrecord_path, f) for f in files]
+
     dataset = tfrecords2tfdataset(
         files,
         feature_shape,
@@ -278,7 +318,3 @@ def dataset_stat_per_example(dataset_file, tfrecord_path, feature_shape, class_l
                 pass
 
     return n_batches, n_examples_per_class
-
-
-
-

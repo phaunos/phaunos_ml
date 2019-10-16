@@ -52,10 +52,13 @@ def process(config_filename):
     ##############################################
 
     train_files, labels = read_dataset_file(
+        config['root_path'],
         config['train_set_file'],
-        prepend_path=config['feature_path'],
+        audio_dirname=config['audio_dirname'],
+        annotation_dirname=config['annotation_dirname'],
         replace_ext='.tf'
     )
+    train_files = [os.path.join(config['feature_path'], f) for f in train_files]
     class_list = sorted(list(set.union(*labels)))
     train_dataset = tfrecords2tfdataset(
         train_files,
@@ -67,10 +70,13 @@ def process(config_filename):
     valid_dataset = None
     if config['valid_set_file']:
         valid_files, _ = read_dataset_file(
+            config['root_path'],
             config['valid_set_file'],
-            prepend_path=config['feature_path'],
+            audio_dirname=config['audio_dirname'],
+            annotation_dirname=config['annotation_dirname'],
             replace_ext='.tf'
         )
+        valid_files = [os.path.join(config['feature_path'], f) for f in valid_files]
         valid_dataset = tfrecords2tfdataset(
             valid_files,
             feature_extractor.feature_shape,
