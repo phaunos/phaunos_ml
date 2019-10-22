@@ -72,8 +72,6 @@ def time_warp(data, w=80):
         w: warp parameter (see above)
     """
 
-
-
     _, n_freq_bins, n_time_bins, channels = tf.shape(data)
 
     # pick a random point along the time axis in [w,n_time_bins-w]
