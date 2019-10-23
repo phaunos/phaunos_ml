@@ -52,7 +52,7 @@ class TestMixup:
     
     @pytest.fixture(scope="class")
     def mixup(self):
-        return Mixup(w_min=0.5) # So that mixing coefficient is always 0.5
+        return Mixup(min_weight=0.5, max_weight=0.5) # So that mixing coefficient is always 0.5
 
     def test_mixup_channel_first(self, mixup, train_channel_first, aug_channel_first):
 
