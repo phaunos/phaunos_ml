@@ -147,7 +147,7 @@ def read_dataset_file(
     for line in open(dataset_file, 'r'):
         if line.startswith('#') or not line.strip():
             continue
-        audio_filename = line.strip().split(',')[0]
+        audio_filename = line.strip()
 
         # get annotation labels
         ann_filename = os.path.join(
