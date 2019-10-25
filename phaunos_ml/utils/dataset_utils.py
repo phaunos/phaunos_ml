@@ -75,7 +75,8 @@ def create_subset(
         out_dir,
         audio_dirname='audio',
         annotation_dirname='annotations',
-        label_set=None
+        label_set=None,
+        max_num_files_per_label=None
 ):
     """Create a file with a list of audio_file.
     
@@ -96,6 +97,9 @@ def create_subset(
     subset_name = 'subset_{}'.format(str(int(time.time())))
     subset_filename = os.path.join(out_dir, subset_name, f'{subset_name}.csv')
     os.makedirs(os.path.dirname(subset_filename), exist_ok=True)
+
+    # Num files per class counter
+    counter = Counter()
 
     with open(subset_filename, 'w') as out_file:
         if label_set:
@@ -120,6 +124,12 @@ def create_subset(
                         file_label_set = file_label_set.intersection(label_set)
                         if not file_label_set:
                             add_file = False
+                        elif max_num_files_per_label:
+                            # update counter
+                            counter.update(file_label_set)
+                            # if a class has more files than max_num_files_per_label, do not add
+                            if np.any(np.array([counter[l] for l in file_label_set])>max_num_files_per_label):
+                                add_file = False
 
                     # write file
                     if add_file:
