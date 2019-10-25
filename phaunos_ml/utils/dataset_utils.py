@@ -142,6 +142,23 @@ def create_subset(
     return subset_filename
 
 
+def write_dataset_file(root_path, out_file, audio_dirname='audio'):
+    """Write list of audio file path,
+    relatively to root_path.
+    """
+    
+    with open(out_file, 'w') as f:
+        for path, _, filenames in os.walk(os.path.join(root_path, audio_dirname)):
+            for filename in filenames:
+                if not filename.endswith('.wav'):
+                    continue
+                audio_filename = os.path.relpath(
+                    os.path.join(path, filename),
+                    root_path
+                )
+                f.write(f'{audio_filename}\n')
+
+
 def read_dataset_file(
         root_path,
         dataset_file,
