@@ -195,6 +195,7 @@ def split_dataset(
         dataset_file,
         audio_dirname='audio',
         annotation_dirname='annotations',
+        label_subset=set(),
         test_size=0.2):
     """Split dataset in train and test sets (stratified)."""
 
@@ -203,8 +204,12 @@ def split_dataset(
         dataset_file,
         audio_dirname=audio_dirname,
         annotation_dirname=annotation_dirname)
-    label_set = set.union(*labels)
+    label_set = label_subset if label_subset else set.union(*labels)
     label_list = sorted(list(label_set))
+
+    if label_subset:
+        # only keep labels in label_subset
+        labels = [l.intersection(label_set) for l in labels]
 
     multilabel = False
     for file_label_set in labels:
