@@ -232,7 +232,7 @@ def split_dataset(
         for set_name, X in [('train', X_train), ('test', X_test)]:
             set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
             with open(set_filename, 'w') as set_file:
-                set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
+                set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in label_list])))
                 for i in range(X.shape[0]):
                     set_file.write(f'{X[i,0]}\n')
                 print(f'{set_filename} written')
