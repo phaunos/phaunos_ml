@@ -1,4 +1,5 @@
 import os
+import json
 from time import time
 import pathlib
 import librosa
@@ -12,6 +13,7 @@ from phaunos_ml.models import simple_cnn
 
 
 # Path to data
+DATASET_ROOT = '/home/jul/data'
 DATASET_FILE = '/home/jul/data/ingerop/subset_1572008350/subset_1572008350.csv'
 DATASET_DIR = os.path.dirname(DATASET_FILE)
 FEATEX_CFG = os.path.join(DATASET_DIR, 'features/featex_config.json')
@@ -19,9 +21,9 @@ AUDIO_DIRNAME = 'audio/wav_22050hz_MLR'
 ANNOTATION_DIRNAME = 'annotations_ingerop'
 
 # tf.data.Dataset pipeline config
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 SHUFFLE_FILES = True
-INTERLEAVE_FILES = False
+INTERLEAVE_FILES = True
 SHUFFLE_EXAMPLES = True
 PREFETCH_DATA = True
 PARALLEL_CALLS = True
@@ -82,9 +84,13 @@ def run():
 
     # Get class list
     class_list = sorted([int(i) for i in next(open(DATASET_FILE, 'r')).strip().split(':')[1].split(',')])
+    print("\nClass list:")
+    print(class_list)
 
     # Create feature extractor from config
     feature_extractor = feature_utils.AudioSegmentExtractor.from_config(FEATEX_CFG)
+    print("\nFeature extractor config:")
+    print(json.load(open(FEATEX_CFG, 'r')))
 
 
     #################
@@ -200,9 +206,9 @@ def run():
         valid_dataset = valid_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 
-    ############
-    # Training #
-    ############
+    ################
+    # Set up model #
+    ################
 
     # build model
     inputs = tf.keras.Input(shape=(1, N_MELS, N_TIME_BINS), batch_size=BATCH_SIZE, name='mels')
@@ -210,7 +216,7 @@ def run():
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.summary()
 
-    # Compile model
+    # compile model
     optimizer = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
     loss = tf.keras.losses.binary_crossentropy
     model.compile(loss=loss,
@@ -250,17 +256,46 @@ def run():
     callback_list = [tb, mc]
 
 
+    #########################
+    # Get number of batches #
+    #########################
+
+    # get numbers of batches in training dataset
+    n_train_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
+        DATASET_ROOT,
+        DATASET_FILE.replace('.csv', '.train.csv'),
+        os.path.join(DATASET_DIR, 'features/positive/'),
+        feature_extractor.feature_shape,
+        class_list,
+        batch_size=BATCH_SIZE,
+        audio_dirname=AUDIO_DIRNAME,
+        annotation_dirname=ANNOTATION_DIRNAME
+    )
+    n_valid_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
+        DATASET_ROOT,
+        DATASET_FILE.replace('.csv', '.test.csv'),
+        os.path.join(DATASET_DIR, 'features/positive/'),
+        feature_extractor.feature_shape,
+        class_list,
+        batch_size=BATCH_SIZE,
+        audio_dirname=AUDIO_DIRNAME,
+        annotation_dirname=ANNOTATION_DIRNAME
+    )
+
+    print(f'Number of training batches: {n_train_batches}')
+    print(f'Number of validation batches: {n_valid_batches}')
+
     #########
     # Train #
     #########
 
     model.fit(
         dataset,
-        steps_per_epoch=200,
-#    validation_data=valid_dataset,
-#    validation_steps=n_valid_batches,
+        steps_per_epoch=n_train_batches,
+        validation_data=valid_dataset,
+        validation_steps=n_valid_batches,
         epochs=50,
-#        callbacks=callback_list,
+        callbacks=callback_list,
         verbose=2)
 
 
