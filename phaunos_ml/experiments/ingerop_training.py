@@ -9,7 +9,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.keras.callbacks import LearningRateScheduler, TensorBoard, ModelCheckpoint
 
 from phaunos_ml.utils import tf_utils, feature_utils, dataug_utils, tf_feature_utils, dataset_utils
-from phaunos_ml.models import simple_cnn
+from phaunos_ml.models import simple_cnn2 as simple_cnn
 
 
 # Path to data
@@ -250,7 +250,8 @@ def run():
                      '{val_binary_accuracy:.2f}.h5'),
         monitor='val_binary_accuracy',
         verbose=1,
-        save_best_only=True)
+        save_best_only=True,
+        save_weights_only=True)
 
     #    callback_list = [lr_scheduler, tb, mc]
     callback_list = [tb, mc]
@@ -291,9 +292,9 @@ def run():
 
     model.fit(
         dataset,
-        steps_per_epoch=n_train_batches,
+        steps_per_epoch=50,
         validation_data=valid_dataset,
-        validation_steps=n_valid_batches,
+        validation_steps=50,
         epochs=50,
         callbacks=callback_list,
         verbose=2)

@@ -6,6 +6,7 @@ import tensorflow as tf
 from nsb_aad.frame_based_detectors.mario_detector import MarioDetector
 from phaunos_ml.utils import feature_utils, audio_utils, tf_utils, tf_feature_utils
 
+from phaunos_ml.models import simple_cnn2 as simple_cnn
 
 SR = 22050
 
@@ -21,7 +22,7 @@ FMAX = 8000
 N_MELS = 64
 N_TIME_BINS = 169 # inspect the data to find out
 
-def predict(audio_filename, actdet_cfg_file, featex_cfg_file):
+def predict(audio_filename, actdet_cfg_file, featex_cfg_file, model_weights_file):
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -76,27 +77,27 @@ def predict(audio_filename, actdet_cfg_file, featex_cfg_file):
         training=True))
     dataset = dataset.batch(1)
 
-    print(dataset)
-
     melspec_ex = tf_feature_utils.MelSpectrogram(
         feature_extractor.sr, N_FFT, HOP_LENGTH, N_MELS, fmin=FMIN, fmax=FMAX, log=True)
     dataset = dataset.map(lambda data, labels: (
-        tf.expand_dims(melspec_ex.process(tf.squeeze(data, axis=[1,2])), 1),
-        labels))
-
-    print(dataset)
-    iterator = dataset.make_one_shot_iterator()
-    next_batch = iterator.get_next()
-
-    somedata = []
-    try:
-        while True:
-            somedata.append(session.run(next_batch))
-    except tf.errors.OutOfRangeError:
-        pass
+        tf.expand_dims(melspec_ex.process(tf.squeeze(data, axis=[1,2])), 1)))
 
 
-    return somedata
+    ##########################
+    # Load model and predict #
+    ##########################
+
+    inputs = tf.keras.Input(shape=(1, 64, 169), batch_size=1, name='mels')
+    outputs = simple_cnn.build_model(inputs,
+                                     10,
+                                     multilabel=True)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    model.load_weights(model_weights_file)
+    model.summary()
+
+    predictions = model.predict(dataset)
+
+    return predictions
 
 
 if __name__ == "__main__":
