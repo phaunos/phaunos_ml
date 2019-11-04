@@ -14,10 +14,10 @@ from phaunos_ml.models import simple_cnn2 as simple_cnn
 
 # Path to data
 DATASET_ROOT = '/home/jul/data'
-DATASET_FILE = '/home/jul/data/ingerop/subset_1572008350/subset_1572008350.csv'
+DATASET_FILE = '/home/jul/data/ingerop/subset_1572817777/subset_1572817777.csv'
 DATASET_DIR = os.path.dirname(DATASET_FILE)
 FEATEX_CFG = os.path.join(DATASET_DIR, 'features/featex_config.json')
-AUDIO_DIRNAME = 'audio/wav_22050hz_MLR'
+AUDIO_DIRNAME = 'audio/wav_22050hz'
 ANNOTATION_DIRNAME = 'annotations_ingerop'
 
 # tf.data.Dataset pipeline config
@@ -32,15 +32,19 @@ PARALLEL_CALLS = True
 N_FFT = 512
 HOP_LENGTH = 128
 FMIN = 500
-FMAX = 8000
+FMAX = 10000
 N_MELS = 64
-N_TIME_BINS = 169 # inspect the data to find out
+N_TIME_BINS = 341 # inspect the data to find out
 
 # Data Augmentation
-DA_MIXUP = True
+DA_MIXUP = False
 DA_TIME_WARP = False
-DA_MASKING = True
+DA_MASKING = False
 
+# number of batches
+COMPUTE_N_BATCHES = False
+N_TRAINING_BATCHES = 2505
+N_VALID_BATCHES = 143
 
 def tfrecords2dataset(
         tfrecords,
@@ -163,7 +167,7 @@ def run():
             mixup.process(dataset1[0], dataset1[1], dataset2[0], dataset2[1], BATCH_SIZE)),
             num_parallel_calls=tf.data.experimental.AUTOTUNE if PARALLEL_CALLS else None)
     else:
-        dataset = dataset_training
+        dataset = training_dataset
 
     # compute mel spectrogram
     melspec_ex = tf_feature_utils.MelSpectrogram(feature_extractor.sr, N_FFT, HOP_LENGTH, N_MELS, fmin=FMIN, fmax=FMAX, log=False)
@@ -212,16 +216,16 @@ def run():
 
     # build model
     inputs = tf.keras.Input(shape=(1, N_MELS, N_TIME_BINS), batch_size=BATCH_SIZE, name='mels')
-    outputs = simple_cnn.build_model(inputs, len(class_list), multilabel=True)
+    outputs = simple_cnn.build_model(inputs, len(class_list))
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.summary()
 
     # compile model
     optimizer = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999)
-    loss = tf.keras.losses.binary_crossentropy
+    loss = tf.keras.losses.categorical_crossentropy
     model.compile(loss=loss,
                   optimizer=optimizer,
-                  metrics=[tf.keras.metrics.BinaryAccuracy()])
+                  metrics=[tf.keras.metrics.CategoricalAccuracy()])
 
 
     ################################
@@ -236,6 +240,15 @@ def run():
     #    lr_scheduler = LearningRateScheduler(
     #        lambda x:float(lr_interpolate(x)),
     #        verbose=1)
+    def scheduler(epoch):
+        if epoch < 10:
+            return 1e-2
+        else:
+            return 1e-3
+
+    lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose=1)
+
+
 
     # Tensorboard
     tb_log_dir = os.path.join(out_dir, "tb_logs")
@@ -247,44 +260,45 @@ def run():
     pathlib.Path(model_dir).mkdir(parents=True, exist_ok=True)
     mc = ModelCheckpoint(
         os.path.join(model_dir, 'model.{epoch:02d}-' +
-                     '{val_binary_accuracy:.2f}.h5'),
-        monitor='val_binary_accuracy',
+                     '{val_categorical_accuracy:.2f}.h5'),
+        monitor='val_categorical_accuracy',
         verbose=1,
         save_best_only=True,
         save_weights_only=True)
 
-    #    callback_list = [lr_scheduler, tb, mc]
-    callback_list = [tb, mc]
+    callback_list = [lr_scheduler, mc]
+    #callback_list = [tb, mc]
 
 
     #########################
     # Get number of batches #
     #########################
 
-    # get numbers of batches in training dataset
-    n_train_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
-        DATASET_ROOT,
-        DATASET_FILE.replace('.csv', '.train.csv'),
-        os.path.join(DATASET_DIR, 'features/positive/'),
-        feature_extractor.feature_shape,
-        class_list,
-        batch_size=BATCH_SIZE,
-        audio_dirname=AUDIO_DIRNAME,
-        annotation_dirname=ANNOTATION_DIRNAME
-    )
-    n_valid_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
-        DATASET_ROOT,
-        DATASET_FILE.replace('.csv', '.test.csv'),
-        os.path.join(DATASET_DIR, 'features/positive/'),
-        feature_extractor.feature_shape,
-        class_list,
-        batch_size=BATCH_SIZE,
-        audio_dirname=AUDIO_DIRNAME,
-        annotation_dirname=ANNOTATION_DIRNAME
-    )
+    if COMPUTE_N_BATCHES:
+        # get numbers of batches in training dataset
+        n_train_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
+            DATASET_ROOT,
+            DATASET_FILE.replace('.csv', '.train.csv'),
+            os.path.join(DATASET_DIR, 'features/positive/'),
+            feature_extractor.feature_shape,
+            class_list,
+            batch_size=BATCH_SIZE,
+            audio_dirname=AUDIO_DIRNAME,
+            annotation_dirname=ANNOTATION_DIRNAME
+        )
+        n_valid_batches, n_train_examples_per_class = dataset_utils.dataset_stat_per_example(
+            DATASET_ROOT,
+            DATASET_FILE.replace('.csv', '.test.csv'),
+            os.path.join(DATASET_DIR, 'features/positive/'),
+            feature_extractor.feature_shape,
+            class_list,
+            batch_size=BATCH_SIZE,
+            audio_dirname=AUDIO_DIRNAME,
+            annotation_dirname=ANNOTATION_DIRNAME
+        )
 
-    print(f'Number of training batches: {n_train_batches}')
-    print(f'Number of validation batches: {n_valid_batches}')
+        print(f'Number of training batches: {n_train_batches}')
+        print(f'Number of validation batches: {n_valid_batches}')
 
     #########
     # Train #
@@ -292,9 +306,10 @@ def run():
 
     model.fit(
         dataset,
-        steps_per_epoch=50,
+        steps_per_epoch=N_TRAINING_BATCHES,
+#        steps_per_epoch=400,
         validation_data=valid_dataset,
-        validation_steps=50,
+        validation_steps=N_VALID_BATCHES,
         epochs=50,
         callbacks=callback_list,
         verbose=2)

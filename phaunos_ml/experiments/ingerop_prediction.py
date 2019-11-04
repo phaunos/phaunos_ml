@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 
 import tensorflow as tf
 
@@ -18,9 +19,12 @@ TMP_DIR = '/home/jul/tmp_tfrecords'
 N_FFT = 512
 HOP_LENGTH = 128
 FMIN = 500
-FMAX = 8000
+FMAX = 10000
 N_MELS = 64
-N_TIME_BINS = 169 # inspect the data to find out
+N_TIME_BINS = 341 # inspect the data to find out
+
+N_CLASSES = 3
+
 
 def predict(audio_filename, actdet_cfg_file, featex_cfg_file, model_weights_file):
 
@@ -87,17 +91,17 @@ def predict(audio_filename, actdet_cfg_file, featex_cfg_file, model_weights_file
     # Load model and predict #
     ##########################
 
-    inputs = tf.keras.Input(shape=(1, 64, 169), batch_size=1, name='mels')
+    inputs = tf.keras.Input(shape=(1, N_MELS, N_TIME_BINS), batch_size=1, name='mels')
     outputs = simple_cnn.build_model(inputs,
-                                     10,
-                                     multilabel=True)
+                                     N_CLASSES)
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.load_weights(model_weights_file)
     model.summary()
 
     predictions = model.predict(dataset)
 
-    return predictions
+    # integrate predictions over time
+    return np.mean(predictions, axis=0)
 
 
 if __name__ == "__main__":
