@@ -100,6 +100,8 @@ def predict(audio_filename, actdet_cfg_file, featex_cfg_file, model_weights_file
 
     predictions = model.predict(dataset)
 
+    session.close()
+
     # integrate predictions over time
     return np.mean(predictions, axis=0)
 
