@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+import numpy as np
 import librosa
 
 from .tf_utils import serialize_data
@@ -114,3 +115,46 @@ def audio2tfrecord(
             else:
                 writer_neg.write(sdata)
 
+
+def audio2data(
+        audio,
+        sr,
+        feature_extractor,
+        activity_detector,
+        class_list,
+        annotation_set=None,
+        start_time_offset=0,
+        mask_min_dur=None
+):
+
+    # compute mask from activity_detection
+    fb_mask = activity_detector.process(audio)
+    fb_mask_sr = activity_detector.frame_rate
+
+    # compute features, segment-based mask and segment boundaries
+    features, mask, times = feature_extractor.process(audio, sr, fb_mask, fb_mask_sr, mask_min_dur)
+
+    examples_pos = []
+    examples_neg = []
+    for i in range(features.shape[0]):
+
+        start_time, end_time = times[i] 
+        if i == features.shape[0] - 1:
+            # Last example's end time is set to original audio file duration
+            # to avoid mislabeling.
+            end_time = start_time_offset + len(audio) / sr
+        labels = get_labels_in_range(annotation_set, start_time, end_time) if annotation_set else set()
+
+        # one-hot encode labels
+        ind = np.where(np.in1d(
+            sorted(class_list),
+            list(labels)))[0]
+        one_hot = np.zeros((len(class_list),))
+        np.put(one_hot, ind, 1)
+
+        if mask[i]:
+            examples_pos.append((features[i], one_hot))
+        else:
+            examples_neg.append((features[i], one_hot))
+
+    return examples_pos, examples_neg
