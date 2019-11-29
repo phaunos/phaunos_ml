@@ -10,7 +10,10 @@ Some examples of the whole data pipeline for the BirdCLEF bird recognition (sing
 # Install
 
 ```
+$ git clone git@bitbucket.org:securaxisteam/nsb_aad.git
+$ git clone git@bitbucket.org:securaxisteam/phaunos_ml.git
+$ export PYTHONPATH=$PYTHONPATH:/path/to/nsb_aad:/path/tp/phaunos_ml
 $ conda create -n phaunos_ml python=3.6
 $ conda activate phaunos_ml
-$ pip install git+https://github.com/phaunos/phaunos_ml
+$ pip install -r requirements_{cpu,gpu}.txt
 ```
