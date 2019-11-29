@@ -11,5 +11,6 @@ Some examples of the whole data pipeline for the BirdCLEF bird recognition (sing
 
 ```
 $ conda create -n phaunos_ml python=3.6
+$ conda activate phaunos_ml
 $ pip install git+https://github.com/phaunos/phaunos_ml
 ```
