@@ -38,9 +38,9 @@ def serialize_data(filename, start_time, end_time, data, labels):
     return example.SerializeToString()
 
 
-def tfrecord2example(tfrecord_filename, feature_extractor):
+def tfrecord2dataset(tfrecord_filename, feature_shape):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2example(x, feature_extractor.feature_shape))
+    dataset = dataset.map(lambda x: serialized2example(x, feature_shape))
     it = dataset.make_one_shot_iterator()
 
     if tf.executing_eagerly():
@@ -57,9 +57,9 @@ def tfrecord2example(tfrecord_filename, feature_extractor):
         return examples
 
 
-def tfrecord2data(tfrecord_filename, feature_extractor, class_list):
+def tfrecord2data(tfrecord_filename, feature_shape, class_list):
     dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.feature_shape, class_list))
+    dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list))
     it = dataset.make_one_shot_iterator()
 
     if tf.executing_eagerly():
