@@ -38,44 +38,6 @@ def serialize_data(filename, start_time, end_time, data, labels):
     return example.SerializeToString()
 
 
-def tfrecord2dataset(tfrecord_filename, feature_shape):
-    dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2example(x, feature_shape))
-    it = dataset.make_one_shot_iterator()
-
-    if tf.executing_eagerly():
-        return [ex for ex in it]
-    else:
-        next_example = it.get_next()
-        examples = []
-        with tf.Session() as sess:
-            try:
-                while True:
-                    examples.append(sess.run(next_example))
-            except tf.errors.OutOfRangeError:
-                pass
-        return examples
-
-
-def tfrecord2data(tfrecord_filename, feature_shape, class_list):
-    dataset = tf.data.TFRecordDataset([tfrecord_filename])
-    dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list))
-    it = dataset.make_one_shot_iterator()
-
-    if tf.executing_eagerly():
-        return [ex for ex in it]
-    else:
-        next_example = it.get_next()
-        examples = []
-        with tf.Session() as sess:
-            try:
-                while True:
-                    examples.append(sess.run(next_example))
-            except tf.errors.OutOfRangeError:
-                pass
-        return examples
-
-
 def serialized2example(serialized_data, feature_shape):
     features = {
         'filename': tf.io.FixedLenFeature([], tf.string),
@@ -84,6 +46,38 @@ def serialized2example(serialized_data, feature_shape):
         'labels': tf.io.FixedLenFeature([], tf.string),
     }
     return tf.io.parse_single_example(serialized_data, features)
+
+
+def labelstr2onehot(labelstr, class_list):
+    """One-hot label encoding
+    
+    labelstr: label, encoded as 'id1#...#idN', where idn is an int
+    class_list: list of classes used as the reference for the one hot encoding    
+    """
+
+    # parse string
+    labels = tf.cond(
+        tf.equal(tf.strings.length(labelstr), 0),
+        true_fn=lambda:tf.constant([], dtype=tf.int32),
+        false_fn=lambda:tf.strings.to_number(
+            tf.strings.split(labelstr, '#'),
+            out_type=tf.int32
+        )
+    )
+
+    # sort class_list and get indices of labels in class_list
+    class_list = tf.sort(class_list)
+    labels = tf.where(
+        tf.equal(
+            tf.expand_dims(labels, axis=1),
+            class_list)
+    )[:,1]
+
+    return tf.cond(
+        tf.equal(tf.size(labels), 0),
+        true_fn=lambda: tf.zeros(tf.size(class_list)),
+        false_fn=lambda: tf.reduce_max(tf.one_hot(labels, tf.size(class_list)), 0)
+    )
 
 
 def serialized2data(
@@ -119,70 +113,9 @@ def serialized2data(
         data = tf.reshape(example['data'], (feature_shape[0], feature_shape[1], 1))
 
     # one-hot encode labels
-    labels = tf.strings.to_number(
-        tf.string_split([example['labels']], '#').values,
-        out_type=tf.int32
-    )
-
-    # get intersection of class_list and labels
-    labels = tf.squeeze(
-        tf.sparse.to_dense(
-            tf.sets.intersection(
-                tf.expand_dims(labels, axis=0),
-                tf.expand_dims(class_list, axis=0)
-            )
-        ),
-        axis=0
-    )
-
-    # sort class_list and get indices of labels in class_list
-    class_list = tf.sort(class_list)
-    labels = tf.where(
-        tf.equal(
-            tf.expand_dims(labels, axis=1),
-            class_list)
-    )[:,1]
-
-    tf.cond(
-        tf.math.logical_and(training, tf.equal(tf.size(labels), 0)),
-        true_fn=lambda:myprint(tf.strings.format('File {} has no label', example['filename'])),
-        false_fn=lambda:1
-    )
-
-    one_hot = tf.cond(
-        tf.equal(tf.size(labels), 0),
-        true_fn=lambda: tf.zeros(tf.size(class_list)),
-        false_fn=lambda: tf.reduce_max(tf.one_hot(labels, tf.size(class_list)), 0)
-    )
+    one_hot = labelstr2onehot(example['labels'], class_list)
 
     if training:
         return (data, one_hot)
     else:
         return (data, one_hot, example['filename'], example['times'])
-
-
-def tfrecords2tfdataset(
-        files,
-        feature_shape,
-        class_list,
-        training=True,
-        batch_size=32
-):
-    """Returns a tensorflow's dataset from a list of tfrecords."""
-
-    if training:
-        files = tf.convert_to_tensor(files, dtype=dtypes.string)
-        files = tf.data.Dataset.from_tensor_slices(files)
-        dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x), cycle_length=8)
-        # dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x).prefetch(100), cycle_length=8)
-        dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list, training=training))
-        dataset = dataset.shuffle(10000)
-        dataset = dataset.repeat()  # Repeat the input indefinitely.
-    else:
-        dataset = tf.data.TFRecordDataset(files)
-        dataset = dataset.map(lambda x: serialized2data(x, feature_shape, class_list, training=training))
-
-    dataset = dataset.batch(batch_size, drop_remainder=True)
-    return dataset
-
-
