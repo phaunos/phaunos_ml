@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
-from .tf_utils import tfrecords2tfdataset
+from .tf_serialization_utils import serialized2data
 
 
 """
@@ -292,7 +292,6 @@ def dataset_stat_per_example(
         root_path,
         dataset_file,
         tfrecord_path,
-        feature_shape,
         class_list,
         batch_size=32,
         audio_dirname='audio',
@@ -302,7 +301,6 @@ def dataset_stat_per_example(
     Args:
         dataset_file: file containing a list of audio filenames, relative to root_path
         tfrecord_path: directory containing the tfrecords
-        example shape: shape of the examples
         class_list: list of the classes used in the dataset (the label ids in the tfrecords are
             indices in this class_list)
         batch_size: batch size
@@ -322,31 +320,15 @@ def dataset_stat_per_example(
     
     files = [os.path.join(tfrecord_path, f) for f in files]
 
-    dataset = tfrecords2tfdataset(
-        files,
-        feature_shape,
-        class_list,
-        training=False,
-        batch_size=batch_size
-    )
-    it = dataset.make_one_shot_iterator()
+    dataset = tf.data.TFRecordDataset(files)
+    dataset = dataset.map(lambda data: serialized2data(data, class_list))
+    dataset = dataset.batch(batch_size, drop_remainder=True)
 
     n_batches = 0
     n_examples_per_class = np.zeros((len(class_list),), dtype=np.int32)
 
-    if tf.executing_eagerly():
-        for _, one_hot, _, _  in it:
-            n_examples_per_class += np.count_nonzero(one_hot, axis=0)
-            n_batches += 1
-    else:
-        next_example = it.get_next()
-        with tf.Session() as sess:
-            try:
-                while True:
-                    _, one_hot, _, _ = sess.run(next_example)
-                    n_examples_per_class += np.count_nonzero(one_hot, axis=0)
-                    n_batches += 1
-            except tf.errors.OutOfRangeError:
-                pass
+    for _, one_hot, _, _  in dataset:
+        n_examples_per_class += np.count_nonzero(one_hot, axis=0)
+        n_batches += 1
 
     return n_batches, n_examples_per_class
