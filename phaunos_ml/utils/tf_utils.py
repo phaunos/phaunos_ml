@@ -31,18 +31,20 @@ def serialize_data(filename, start_time, end_time, data, labels):
     feature = {
         'filename': _bytes_feature([filename.encode()]),
         'times': _float_feature([start_time, end_time]),
-        'data': _float_feature(data.flatten()),
+        'shape': _int64_feature(data.shape),
+        'data': _bytes_feature([data.tobytes()]),
         'labels': _bytes_feature(["#".join(str(l) for l in labels).encode()]),
     }
     example = tf.train.Example(features=tf.train.Features(feature=feature))
     return example.SerializeToString()
 
 
-def serialized2example(serialized_data, feature_shape):
+def serialized2example(serialized_data):
     features = {
         'filename': tf.io.FixedLenFeature([], tf.string),
         'times': tf.io.FixedLenFeature([2], tf.float32),
-        'data': tf.io.FixedLenFeature(feature_shape, tf.float32),
+        'shape': tf.io.FixedLenFeature([2], tf.int64),
+        'data': tf.io.FixedLenFeature([], tf.string),
         'labels': tf.io.FixedLenFeature([], tf.string),
     }
     return tf.io.parse_single_example(serialized_data, features)
