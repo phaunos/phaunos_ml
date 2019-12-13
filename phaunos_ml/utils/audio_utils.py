@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import librosa
 
-from .tf_utils import serialize_data
+from .tf_serialization_utils import serialize_data
 from .annotation_utils import read_annotation_file, get_labels_in_range
 
 

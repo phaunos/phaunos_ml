@@ -37,17 +37,6 @@ def serialize_data(filename, start_time, end_time, data, labels):
     return example.SerializeToString()
 
 
-def serialized2example(serialized_data):
-    features = {
-        'filename': tf.io.FixedLenFeature([], tf.string),
-        'times': tf.io.FixedLenFeature([2], tf.float32),
-        'shape': tf.io.FixedLenFeature([2], tf.int64),
-        'data': tf.io.FixedLenFeature([], tf.string),
-        'labels': tf.io.FixedLenFeature([], tf.string),
-    }
-    return tf.io.parse_single_example(serialized_data, features) # TODO parse_example on batch
-
-
 def labelstr2onehot(labelstr, class_list):
     """One-hot label encoding
     
@@ -78,6 +67,17 @@ def labelstr2onehot(labelstr, class_list):
         true_fn=lambda: tf.zeros(tf.size(class_list)),
         false_fn=lambda: tf.reduce_max(tf.one_hot(labels, tf.size(class_list)), 0)
     )
+
+
+def serialized2example(serialized_data):
+    features = {
+        'filename': tf.io.FixedLenFeature([], tf.string),
+        'times': tf.io.FixedLenFeature([2], tf.float32),
+        'shape': tf.io.FixedLenFeature([2], tf.int64),
+        'data': tf.io.FixedLenFeature([], tf.string),
+        'labels': tf.io.FixedLenFeature([], tf.string),
+    }
+    return tf.io.parse_single_example(serialized_data, features) # TODO parse_example on batch
 
 
 def serialized2data(
