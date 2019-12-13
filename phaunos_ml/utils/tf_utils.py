@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow import keras
@@ -28,6 +29,9 @@ def myprint(message):
 
 
 def serialize_data(filename, start_time, end_time, data, labels):
+    if not data.dtype == np.float32:
+        # TODO: add dtype to serialized data to allow 16 bits
+        data = data.astype(np.float32)
     feature = {
         'filename': _bytes_feature([filename.encode()]),
         'times': _float_feature([start_time, end_time]),
@@ -84,40 +88,20 @@ def labelstr2onehot(labelstr, class_list):
 
 def serialized2data(
         serialized_data,
-        feature_shape,
-        class_list,
-        data_format='channels_first',
-        training=True):
-    """Generate features, labels and, if training is False, filenames and times.
-    Labels are indices of original label in class_list.
+        class_list):
+    """Generates data, filename, segment time bounds and one hot encoded labels .
 
     Args:
         serialized_data: data serialized using utils.tf_utils.serialize_data
-        feature_shape: shape of the features. Can be obtained with feature_extractor.feature_shape (see utils.feature_utils)
         class_list: list of class ids (used for one-hot encoding the labels)
-        data_format: 'channels_first' (NCHW) or 'channels_last' (NHWC).
-            Default is set to 'channels_first' because it is more optimal on GPU
-            (https://www.tensorflow.org/guide/performance/overview#data_formats).
     """
 
-    features = {
-        'filename': tf.io.FixedLenFeature([], tf.string),
-        'times': tf.io.FixedLenFeature([2], tf.float32),
-        'data': tf.io.FixedLenFeature(feature_shape, tf.float32),
-        'labels': tf.io.FixedLenFeature([], tf.string),
-    }
-    example = tf.io.parse_single_example(serialized_data, features)
+    example = serialized2example(serialized_data)
 
-    # reshape data to channels_first format
-    if data_format == 'channels_first':
-        data = tf.reshape(example['data'], (1, feature_shape[0], feature_shape[1]))
-    else:
-        data = tf.reshape(example['data'], (feature_shape[0], feature_shape[1], 1))
+    # reshape data to original shape
+    data = tf.reshape(tf.io.decode_raw(example['data'], tf.float32), example['shape'])
 
     # one-hot encode labels
     one_hot = labelstr2onehot(example['labels'], class_list)
 
-    if training:
-        return (data, one_hot)
-    else:
-        return (data, one_hot, example['filename'], example['times'])
+    return (data, one_hot, example['filename'], example['times'])
