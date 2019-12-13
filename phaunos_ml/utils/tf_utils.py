@@ -22,12 +22,6 @@ def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 
-# Can't get tf.logging.warning to work...
-def myprint(message):
-    tf.print(message)
-    return 1
-
-
 def serialize_data(filename, start_time, end_time, data, labels):
     if not data.dtype == np.float32:
         # TODO: add dtype to serialized data to allow 16 bits
