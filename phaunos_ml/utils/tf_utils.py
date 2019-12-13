@@ -45,7 +45,7 @@ def serialized2example(serialized_data):
         'data': tf.io.FixedLenFeature([], tf.string),
         'labels': tf.io.FixedLenFeature([], tf.string),
     }
-    return tf.io.parse_single_example(serialized_data, features)
+    return tf.io.parse_single_example(serialized_data, features) # TODO parse_example on batch
 
 
 def labelstr2onehot(labelstr, class_list):
