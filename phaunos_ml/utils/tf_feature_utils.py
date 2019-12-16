@@ -20,7 +20,7 @@ class MelSpectrogram:
         self.log = tf.constant(log)
 
         # Mel filter weights
-        self.mel_filters = tf.contrib.signal.linear_to_mel_weight_matrix(
+        self.mel_filters = tf.signal.linear_to_mel_weight_matrix(
             num_mel_bins=n_mels,
             num_spectrogram_bins=int(n_fft / 2 + 1),
             sample_rate=sr,
@@ -37,7 +37,7 @@ class MelSpectrogram:
         """
 
         # compute spectogram
-        spec = tf.abs(tf.contrib.signal.stft(
+        spec = tf.abs(tf.signal.stft(
             data,
             frame_length=self.n_fft,
             frame_step=self.hop_length,

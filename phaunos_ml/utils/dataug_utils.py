@@ -1,5 +1,6 @@
 import tensorflow as tf
-from tensorflow.contrib.image import sparse_image_warp
+import tensorflow_probability as tfp
+from tensorflow_addons.image import sparse_image_warp
 
 
 #########
@@ -28,7 +29,7 @@ class Mixup:
         if (min_weight < 0 or min_weight > 1 or max_weight < 0
                 or max_weight > 1 or min_weight > max_weight):
             raise ValueError('weights must be in [0,1], with min_weight <= max_weight')
-        self.dist = tf.distributions.Uniform(low=min_weight, high=max_weight)
+        self.dist = tfp.distributions.Uniform(low=min_weight, high=max_weight)
 
     def process(self, batch1, label1, batch2, label2, batch_size):
         """Mixup the data.
