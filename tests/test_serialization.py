@@ -1,19 +1,18 @@
 import pytest
 import os
 import tensorflow as tf
-tf.enable_eager_execution()
 import numpy as np
 import librosa
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
 from phaunos_ml.utils.annotation_utils import read_annotation_file
 from phaunos_ml.utils.audio_utils import audiofile2tfrecord
-from phaunos_ml.utils.tf_utils import serialized2example, serialized2data
+from phaunos_ml.utils.tf_serialization_utils import serialized2example, serialized2data
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-WAV_FILE = 'chirp.wav'
-ANNOTATION_FILE = os.path.join(DATA_PATH, 'chirp.ann')
+AUDIO_RELPATH_ = 'chirp.wav'
+ANNOTATION_RELPATH = 'chirp.ann'
 TFRECORD_FILE = os.path.join(DATA_PATH, 'positive', 'chirp.tf')
 
 
@@ -21,11 +20,11 @@ class TestTFRecord:
 
     @pytest.fixture(scope="class")
     def audio_data(self):
-        return librosa.load(os.path.join(DATA_PATH, WAV_FILE), sr=None)
+        return librosa.load(os.path.join(DATA_PATH, AUDIO_RELPATH_), sr=None)
     
     @pytest.fixture(scope="class")
     def annotation_set(self):
-        return read_annotation_file(ANNOTATION_FILE)
+        return read_annotation_file(os.path.join(DATA_PATH, ANNOTATION_RELPATH))
 
     def test_data(self, audio_data, annotation_set):
         """Arbitrary sanity checks"""
@@ -43,20 +42,19 @@ class TestTFRecord:
         # write tfrecord file
         audiofile2tfrecord(
             DATA_PATH,
-            WAV_FILE,
+            AUDIO_RELPATH_,
             DATA_PATH,
             feature_extractor,
-            annotation_filename=ANNOTATION_FILE
+            annotation_relpath=ANNOTATION_RELPATH
         )
 
         # read tfrecord to example
         dataset = tf.data.TFRecordDataset([TFRECORD_FILE])
-        dataset = dataset.map(lambda x: serialized2example(x, feature_extractor.feature_shape))
-        it = dataset.make_one_shot_iterator()
-        examples = [ex for ex in it]
+        dataset = dataset.map(lambda x: serialized2example(x))
+        examples = [ex for ex in dataset]
 
         # check data
-        assert np.array_equal(features, np.array([ex['data'].numpy() for ex in examples]))
+        assert np.array_equal(features, np.array([tf.reshape(tf.io.decode_raw(ex['data'], tf.float32), ex['shape']).numpy() for ex in examples]))
 
         # check labels
         labels_str = np.array([ex['labels'].numpy() for ex in examples])
@@ -70,9 +68,8 @@ class TestTFRecord:
 
         # read tfrecord to data and label (model input)
         dataset = tf.data.TFRecordDataset([TFRECORD_FILE])
-        dataset = dataset.map(lambda x: serialized2data(x, feature_extractor.feature_shape, list(range(10))))
-        it = dataset.make_one_shot_iterator()
-        data_label_list = np.array([dl[1].numpy() for dl in it])
+        dataset = dataset.map(lambda x: serialized2data(x, list(range(10))))
+        data_label_list = np.array([d[1].numpy() for d in dataset])
 
         #check labels
         assert np.all(data_label_list[0] == np.array([0,0,0,0,0,0,0,0,0,0]))
