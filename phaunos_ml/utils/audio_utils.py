@@ -20,10 +20,10 @@ def seconds2hms(seconds):
 
 def audiofile2tfrecord(
         root_path,
-        audio_filename,
-        out_dir,
+        audio_relpath,
+        out_path,
         feature_extractor,
-        annotation_filename=None,
+        annotation_relpath=None,
         activity_detector=None,
         min_activity_dur=None
 ):
@@ -31,22 +31,25 @@ def audiofile2tfrecord(
     from an audio file and write to a tfrecord.
 
     Args:
-        root_path: root path of the audio files
-        audio_filename: filename of the audio file, including path relative to root_path
-        out_dir: path of the output directory
-        feature_extractor: see :func:`.feature_utils`
-        annotation_filename: annotation file, as described in :func:`.annotation_utils`
-            If set, labels are also written to the tfrecord
+        root_path: root path of the audio and (optionally) annotation files.
+        audio_relpath: path, relative to root_path, to the audio file.
+        out_path: path of the output directory.
+        feature_extractor: see :func:`.feature_utils`.
+        annotation_relpath: path, relative to root_path, to the annotation file, as described in :func:`.annotation_utils`.
+            If set, labels are also written to the tfrecord.
+        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
+        min_activity_dur: minimum duration of activity to be found in an example.
     Returns:
-        Writes one tfrecord in out_dir with the same basename as audio_file.
+        Writes one tfrecord in <out_path>/<audio_relpath> (changing the extension of the file
+        from '.wav' to '.tf'.
     """
 
     # read audio
-    y, sr = librosa.load(os.path.join(root_path, audio_filename), sr=None)
+    y, sr = librosa.load(os.path.join(root_path, audio_relpath), sr=None)
 
     # read annotations
-    if annotation_filename:
-        annotation_set = read_annotation_file(os.path.join(root_path, annotation_filename))
+    if annotation_relpath:
+        annotation_set = read_annotation_file(os.path.join(root_path, annotation_relpath))
     else:
         annotation_set =  None
 
@@ -62,8 +65,8 @@ def audiofile2tfrecord(
     audio2tfrecord(
         y,
         sr,
-        out_dir,
-        audio_filename.replace('.wav', '.tf'),
+        out_path,
+        audio_relpath.replace('.wav', '.tf'),
         feature_extractor,
         annotation_set,
         fb_mask=fb_mask,
@@ -74,7 +77,7 @@ def audiofile2tfrecord(
 def audio2tfrecord(
         audio,
         sr,
-        out_dir,
+        out_path,
         filename,
         feature_extractor,
         annotation_set=None,
@@ -89,8 +92,8 @@ def audio2tfrecord(
 
     # write tfrecord in either 'negative' or 'positive' subfolders
     # according to mask value
-    out_filename_neg = os.path.join(out_dir, 'negative', filename)
-    out_filename_pos = os.path.join(out_dir, 'positive', filename)
+    out_filename_neg = os.path.join(out_path, 'negative', filename)
+    out_filename_pos = os.path.join(out_path, 'positive', filename)
     os.makedirs(os.path.dirname(out_filename_neg), exist_ok=True)
     os.makedirs(os.path.dirname(out_filename_pos), exist_ok=True)
     with tf.io.TFRecordWriter(out_filename_neg) as writer_neg, \

@@ -24,7 +24,7 @@ audio files and, optionally, annotation files.
 def dataset2tfrecords(
         root_path,
         dataset_file,
-        out_dir,
+        out_path,
         feature_extractor,
         activity_detector=None,
         min_activity_dur=None,
@@ -36,34 +36,36 @@ def dataset2tfrecords(
     for all audio files in the dataset file and write to tfrecords.
 
     Args:
-        root_path: root path of the audio files
-        dataset_file: file containing a list of audio filenames, relative to root_path
-        out_dir: path of the output directory
+        root_path: root path of the audio and (optionally) annotation files.
+        dataset_file: file containing a list of audio paths, relative to root_path
+        out_path: path of the output directory
         feature_extractor: see :func:`.feature_utils`
+        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
+        min_activity_dur: minimum duration of activity to be found in an example.
         audio_dirname: name of the directory containing audio files (see below)
         annotation_dirname: name of the directory containing annotation files. Annotation files must
             have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
         with_labels: whether to include labels in the tfrecords.
             
     Returns:
-        Write tfrecords in out_dir.
+        Write tfrecords in out_path.
     """
 
     for line in tqdm(open(dataset_file, 'r').readlines()):
         if line.startswith('#'):
             continue
-        audio_filename = line.strip()
+        audio_relpath = line.strip()
         if with_labels:
-            annotation_filename = audio_filename.replace(audio_dirname, annotation_dirname) \
+            annotation_relpath = audio_relpath.replace(audio_dirname, annotation_dirname) \
                 .replace('.wav', ANN_EXT)
         else:
-            annotation_filename = None
+            annotation_relpath = None
         audiofile2tfrecord(
             root_path,
-            audio_filename,
-            out_dir,
+            audio_relpath,
+            out_path,
             feature_extractor,
-            annotation_filename=annotation_filename,
+            annotation_relpath=annotation_relpath,
             activity_detector=activity_detector,
             min_activity_dur=min_activity_dur
         )
@@ -72,7 +74,7 @@ def dataset2tfrecords(
 def create_subset(
         root_path,
         subset_path_list,
-        out_dir,
+        out_path,
         audio_dirname='audio',
         annotation_dirname='annotations',
         label_set=None,
@@ -83,7 +85,7 @@ def create_subset(
     Args:
         root_path: root path of the audio files
         subset_path_list: list of directories containing audio and annotation files
-        out_dir: path of the output directory
+        out_path: path of the output directory
         audio_dirname: name of the directory containing audio files (see below)
         annotation_dirname: name of the directory containing annotation files. Annotation files must
             have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
@@ -95,7 +97,7 @@ def create_subset(
 
     # create a folder for this subset
     subset_name = 'subset_{}'.format(str(int(time.time())))
-    subset_filename = os.path.join(out_dir, subset_name, f'{subset_name}.csv')
+    subset_filename = os.path.join(out_path, subset_name, f'{subset_name}.csv')
     os.makedirs(os.path.dirname(subset_filename), exist_ok=True)
 
     # Num files per class counter
