@@ -4,8 +4,6 @@ import tensorflow as tf
 
 from phaunos_ml.utils.dataug_utils import Mixup
 
-tf.enable_eager_execution()
-
 
 BATCH_SIZE = 2
 
