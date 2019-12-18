@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-
-LOG_OFFSET = 1e-6
+from .feature_utils import LOG_OFFSET
 
 
 class MelSpectrogram:
