@@ -20,10 +20,10 @@ def seconds2hms(seconds):
 
 def audiofile2tfrecord(
         root_path,
-        audio_relpath,
-        out_path,
+        audiofile_relpath,
+        outdir_path,
         feature_extractor,
-        annotation_relpath=None,
+        annfile_relpath=None,
         activity_detector=None,
         min_activity_dur=None
 ):
@@ -32,24 +32,23 @@ def audiofile2tfrecord(
 
     Args:
         root_path: root path of the audio and (optionally) annotation files.
-        audio_relpath: path, relative to root_path, to the audio file.
-        out_path: path of the output directory.
+        audiofile_relpath: path, relative to root_path, to the audio file.
+        outdir_path: path of the output directory.
         feature_extractor: see :func:`.feature_utils`.
-        annotation_relpath: path, relative to root_path, to the annotation file, as described in :func:`.annotation_utils`.
-            If set, labels are also written to the tfrecord.
+        annfile_relpath: path, relative to root_path, to the annotation file, as described in :func:`.annotation_utils`. If set, labels are also written to the tfrecord.
         activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
         min_activity_dur: minimum duration of activity to be found in an example.
     Returns:
-        Writes one tfrecord in <out_path>/<audio_relpath> (changing the extension of the file
+        Writes one tfrecord in <outdir_path>/<audiofile_relpath> (changing the extension of the file
         from '.wav' to '.tf'.
     """
 
     # read audio
-    y, sr = librosa.load(os.path.join(root_path, audio_relpath), sr=None)
+    y, sr = librosa.load(os.path.join(root_path, audiofile_relpath), sr=None)
 
     # read annotations
-    if annotation_relpath:
-        annotation_set = read_annotation_file(os.path.join(root_path, annotation_relpath))
+    if annfile_relpath:
+        annotation_set = read_annotation_file(os.path.join(root_path, annfile_relpath))
     else:
         annotation_set =  None
 
@@ -65,8 +64,8 @@ def audiofile2tfrecord(
     audio2tfrecord(
         y,
         sr,
-        out_path,
-        audio_relpath.replace('.wav', '.tf'),
+        outdir_path,
+        audiofile_relpath.replace('.wav', '.tf'),
         feature_extractor,
         annotation_set,
         fb_mask=fb_mask,
@@ -77,23 +76,39 @@ def audiofile2tfrecord(
 def audio2tfrecord(
         audio,
         sr,
-        out_path,
-        filename,
+        outdir_path,
+        tfrecord_relpath,
         feature_extractor,
         annotation_set=None,
-        start_time_offset=0,
         fb_mask=None,
         fb_mask_sr=None,
         mask_min_dur=None
 ):
+    """ Compute fixed-size examples with features (and optionally labels)
+    from audio data and write to a tfrecord.
+
+    Args:
+        audio: mono audio data (np array)
+        sr: sample rate
+        outdir_path: path of the output directory.
+        tfrecord_relpath: relative path to which the tfrecord will be written in outdir_path.
+        feature_extractor: see :func:`.feature_utils`.
+        annotation_set: set of annotation objects.
+        fb_mask: frame-based mask.
+        fb_mask_sr: frame-based mask sample rate.
+        mask_min_dur: minimum total duration of positive mask frames.
+    Returns:
+        Writes one tfrecord in <outdir_path>/<audiofile_relpath> (changing the extension of the file
+        from '.wav' to '.tf'.
+    """
 
     # compute features, segment-based mask and segment boundaries
     features, mask, times = feature_extractor.process(audio, sr, fb_mask, fb_mask_sr, mask_min_dur)
 
     # write tfrecord in either 'negative' or 'positive' subfolders
     # according to mask value
-    out_filename_neg = os.path.join(out_path, 'negative', filename)
-    out_filename_pos = os.path.join(out_path, 'positive', filename)
+    out_filename_neg = os.path.join(outdir_path, 'negative', tfrecord_relpath)
+    out_filename_pos = os.path.join(outdir_path, 'positive', tfrecord_relpath)
     os.makedirs(os.path.dirname(out_filename_neg), exist_ok=True)
     os.makedirs(os.path.dirname(out_filename_pos), exist_ok=True)
     with tf.io.TFRecordWriter(out_filename_neg) as writer_neg, \
@@ -104,10 +119,11 @@ def audio2tfrecord(
             # Last example's end time is set to original audio file duration
             # to avoid mislabeling.
             if i == features.shape[0] - 1:
-                end_time = start_time_offset + len(audio) / sr
-            labels = get_labels_in_range(annotation_set, start_time, end_time) if annotation_set else set()
+                end_time = len(audio) / sr
+            labels = get_labels_in_range(annotation_set, start_time, end_time) \
+                if annotation_set else set()
             sdata = serialize_data(
-                filename,
+                tfrecord_relpath,
                 start_time,
                 end_time,
                 features[i],
@@ -126,9 +142,22 @@ def audio2data(
         activity_detector,
         class_list,
         annotation_set=None,
-        start_time_offset=0,
         mask_min_dur=None
 ):
+    """ Compute fixed-size examples with features (and optionally labels)
+    from audio data.
+
+    Args:
+        audio: mono audio data (np array)
+        sr: sample rate
+        feature_extractor: see :func:`.feature_utils`.
+        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
+        class_list: list of classes used as the reference for one-hot label encoding.
+        annotation_set: set of annotation objects.
+        mask_min_dur: minimum total duration of positive mask frames.
+    Returns:
+        Lists of tuples for positive and negative examples.
+    """
 
     # compute mask from activity_detection
     fb_mask = activity_detector.process(audio)

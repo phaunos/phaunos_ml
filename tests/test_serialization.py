@@ -11,8 +11,8 @@ from phaunos_ml.utils.tf_serialization_utils import serialized2example, serializ
 
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
-AUDIO_RELPATH_ = 'chirp.wav'
-ANNOTATION_RELPATH = 'chirp.ann'
+AUDIOFILE_RELPATH = 'chirp.wav'
+ANNFILE_RELPATH = 'chirp.ann'
 TFRECORD_FILE = os.path.join(DATA_PATH, 'positive', 'chirp.tf')
 
 
@@ -20,11 +20,11 @@ class TestTFRecord:
 
     @pytest.fixture(scope="class")
     def audio_data(self):
-        return librosa.load(os.path.join(DATA_PATH, AUDIO_RELPATH_), sr=None)
+        return librosa.load(os.path.join(DATA_PATH, AUDIOFILE_RELPATH), sr=None)
     
     @pytest.fixture(scope="class")
     def annotation_set(self):
-        return read_annotation_file(os.path.join(DATA_PATH, ANNOTATION_RELPATH))
+        return read_annotation_file(os.path.join(DATA_PATH, ANNFILE_RELPATH))
 
     def test_data(self, audio_data, annotation_set):
         """Arbitrary sanity checks"""
@@ -42,10 +42,10 @@ class TestTFRecord:
         # write tfrecord file
         audiofile2tfrecord(
             DATA_PATH,
-            AUDIO_RELPATH_,
+            AUDIOFILE_RELPATH,
             DATA_PATH,
             feature_extractor,
-            annotation_relpath=ANNOTATION_RELPATH
+            annfile_relpath=ANNFILE_RELPATH
         )
 
         # read tfrecord to example

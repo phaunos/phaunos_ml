@@ -4,7 +4,6 @@ from collections import Counter, defaultdict
 from tqdm import tqdm
 import audioread
 import numpy as np
-from scipy import sparse
 from scipy.sparse import lil_matrix
 from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
@@ -16,20 +15,20 @@ from .tf_serialization_utils import serialized2data
 
 
 """
-Utils for handling dataset, being defined as a file containing a list of
-audio files and, optionally, annotation files.
+Utils for handling dataset files, being defined as a list of
+audio file paths relative to a root path.
 """
 
 
 def dataset2tfrecords(
         root_path,
-        dataset_file,
-        out_path,
+        datasetfile_path,
+        outdir_path,
         feature_extractor,
         activity_detector=None,
         min_activity_dur=None,
-        audio_dirname='audio',
-        annotation_dirname='annotations',
+        audioroot_relpath='audio',
+        annroot_relpath='annotations',
         with_labels=True
 ):
     """ Compute fixed-size examples with features (and optionally labels)
@@ -37,35 +36,34 @@ def dataset2tfrecords(
 
     Args:
         root_path: root path of the audio and (optionally) annotation files.
-        dataset_file: file containing a list of audio paths, relative to root_path
-        out_path: path of the output directory
+        datasetfile_path: file containing a list of audio file paths relative to root_path
+        outdir_path: path of the output directory
         feature_extractor: see :func:`.feature_utils`
         activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
         min_activity_dur: minimum duration of activity to be found in an example.
-        audio_dirname: name of the directory containing audio files (see below)
-        annotation_dirname: name of the directory containing annotation files. Annotation files must
-            have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
-        with_labels: whether to include labels in the tfrecords.
+        audioroot_relpath: root path of the audio files, relative to root_path
+        annroot_relpath: root path of the annotation files, relative to root_path
+        with_labels: whether to include labels in the tfrecords or not.
             
     Returns:
-        Write tfrecords in out_path.
+        Write tfrecords in outdir_path.
     """
 
-    for line in tqdm(open(dataset_file, 'r').readlines()):
+    for line in tqdm(open(datasetfile_path, 'r').readlines()):
         if line.startswith('#'):
             continue
-        audio_relpath = line.strip()
+        audiofile_relpath = line.strip()
         if with_labels:
-            annotation_relpath = audio_relpath.replace(audio_dirname, annotation_dirname) \
+            annfile_relpath = audiofile_relpath.replace(audioroot_relpath, annroot_relpath) \
                 .replace('.wav', ANN_EXT)
         else:
-            annotation_relpath = None
+            annfile_relpath = None
         audiofile2tfrecord(
             root_path,
-            audio_relpath,
-            out_path,
+            audiofile_relpath,
+            outdir_path,
             feature_extractor,
-            annotation_relpath=annotation_relpath,
+            annfile_relpath=annfile_relpath,
             activity_detector=activity_detector,
             min_activity_dur=min_activity_dur
         )
@@ -73,50 +71,50 @@ def dataset2tfrecords(
 
 def create_subset(
         root_path,
-        subset_path_list,
-        out_path,
-        audio_dirname='audio',
-        annotation_dirname='annotations',
+        outdir_path,
+        subset_relpath_list=['.'],
+        audioroot_relpath='audio',
+        annroot_relpath='annotations',
         label_set=None,
         max_num_files_per_label=None
 ):
     """Create a file with a list of audio_file.
     
     Args:
-        root_path: root path of the audio files
-        subset_path_list: list of directories containing audio and annotation files
-        out_path: path of the output directory
-        audio_dirname: name of the directory containing audio files (see below)
-        annotation_dirname: name of the directory containing annotation files. Annotation files must
-            have the same path as the audio files, just replacing audio_dirname by annotation_dirname.
+        root_path: root path of the audio and (optionally) annotation files.
+        outdir_path: path of the output directory
+        subset_relpath_list: list of paths, relative to root_path, containing audio and (optionally) annotation files
+        audioroot_relpath: root path of the audio files, relative to every element in subset_relpath_list
+        annroot_relpath: root path of the annotation files, relative to every element in subset_relpath_list
         label_set: if set, only files having at least one label from label_set are kept.
+        max_num_files_per_label: set the maximum number of files per class. No maximum if set to None.
 
     Returns:
-        Writes a dataset file of all audio files in subset_path_list with at least one label from label_set (if specified).
+        Writes a dataset file of all audio files in subset_relpath_list having at least one label from label_set (if specified).
     """
 
     # create a folder for this subset
     subset_name = 'subset_{}'.format(str(int(time.time())))
-    subset_filename = os.path.join(out_path, subset_name, f'{subset_name}.csv')
-    os.makedirs(os.path.dirname(subset_filename), exist_ok=True)
+    subsetfile_path = os.path.join(outdir_path, subset_name, f'{subset_name}.csv')
+    os.makedirs(os.path.dirname(subsetfile_path), exist_ok=True)
 
     # Num files per class counter
     counter = Counter()
 
-    with open(subset_filename, 'w') as out_file:
+    with open(subsetfile_path, 'w') as out_file:
         if label_set:
             out_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
-        for subset_path in subset_path_list:
-            audio_path = os.path.join(root_path, subset_path, audio_dirname)
-            ann_path = os.path.join(root_path, subset_path, annotation_dirname)
-            for file_path, _, filenames in os.walk(audio_path):
+        for subset_relpath in subset_relpath_list:
+            audioroot_path = os.path.join(root_path, subset_relpath, audioroot_relpath)
+            annroot_path = os.path.join(root_path, subset_relpath, annroot_relpath)
+            for path, _, filenames in os.walk(audioroot_path):
                 for filename in filenames:
                     add_file = True
 
                     # get file labels
                     ann_filename = os.path.join(
-                        ann_path,
-                        os.path.relpath(file_path, audio_path),
+                        annroot_path,
+                        os.path.relpath(path, audioroot_path),
                         filename.replace('.wav', ANN_EXT))
                     ann_set = read_annotation_file(ann_filename)
                     file_label_set = set.union(*map(lambda x:set(x.label_set), ann_set))
@@ -135,77 +133,94 @@ def create_subset(
 
                     # write file
                     if add_file:
-                        audio_filename = os.path.join(
-                            os.path.relpath(file_path, root_path),
+                        audiofile_relpath = os.path.join(
+                            os.path.relpath(path, root_path),
                             filename
                         )
-                        out_file.write(f'{audio_filename}\n')
+                        out_file.write(f'{audiofile_relpath}\n')
 
-    return subset_filename
+    return subsetfile_path
 
 
-def write_dataset_file(root_path, out_file, audio_dirname='audio'):
-    """Write list of audio file path,
-    relatively to root_path.
+def write_dataset_file(root_path, outfile_path, audioroot_relpath='audio'):
+    """Write dataset file (list of audio file paths relative to root_path).
+
+    Args:
+        root_path: root path of the audio and (optionally) annotation files.
+        outfile_path: output file
+        audioroot_relpath: root path of the audio files, relative to root_path
     """
     
-    with open(out_file, 'w') as f:
-        for path, _, filenames in os.walk(os.path.join(root_path, audio_dirname)):
+    with open(outfile_path, 'w') as f:
+        for path, _, filenames in os.walk(os.path.join(root_path, audioroot_relpath)):
             for filename in filenames:
                 if not filename.endswith('.wav'):
                     continue
-                audio_filename = os.path.relpath(
+                audiofile_relpath = os.path.relpath(
                     os.path.join(path, filename),
                     root_path
                 )
-                f.write(f'{audio_filename}\n')
+                f.write(f'{audiofile_relpath}\n')
 
 
 def read_dataset_file(
         root_path,
-        dataset_file,
-        audio_dirname='audio',
-        annotation_dirname='annotations',
-        replace_ext=''):
+        datasetfile_path,
+        audioroot_relpath='audio',
+        annroot_relpath='annotations'):
 
-    """Read dataset file"""
+    """Read dataset file (list of audio file paths relative to root_path).
+    
+    Args:
+        root_path: root path of the audio and (optionally) annotation files.
+        datasetfile_path: file containing a list of audio file paths relative to root_path
+        audioroot_relpath: root path of the audio files, relative to root_path
+        annroot_relpath: root path of the annotation files, relative to root_path
+    """
 
-    audio_filenames = []
+    audiofile_relpaths = []
     labels = []
 
-    for line in open(dataset_file, 'r'):
+    for line in open(datasetfile_path, 'r'):
         if line.startswith('#') or not line.strip():
             continue
-        audio_filename = line.strip()
+        audiofile_relpath = line.strip()
 
         # get annotation labels
         ann_filename = os.path.join(
             root_path,
-            audio_filename.replace(audio_dirname, annotation_dirname).replace('.wav', ANN_EXT))
+            audiofile_relpath.replace(audioroot_relpath, annroot_relpath).replace('.wav', ANN_EXT))
         ann_set = read_annotation_file(ann_filename)
         labels.append(set.union(*map(lambda x:set(x.label_set), ann_set)))
 
-        if replace_ext:
-            audio_filename = audio_filename.replace('.wav', replace_ext)
-        audio_filenames.append(audio_filename)
+        audiofile_relpaths.append(audiofile_relpath)
 
-    return audio_filenames, labels
+    return audiofile_relpaths, labels
 
 
 def split_dataset(
         root_path,
-        dataset_file,
-        audio_dirname='audio',
-        annotation_dirname='annotations',
+        datasetfile_path,
+        audioroot_relpath='audio',
+        annroot_relpath='annotations',
         label_subset=set(),
         test_size=0.2):
-    """Split dataset in train and test sets (stratified)."""
+    """Split dataset in train and test sets (stratified).
+    
+    Args:
+        root_path: root path of the audio and (optionally) annotation files.
+        datasetfile_path: file containing a list of audio file paths relative to root_path
+        audioroot_relpath: root path of the audio files, relative to root_path
+        annroot_relpath: root path of the annotation files, relative to root_path
+        label_subset: subset of labels to be kept.
+        test_size: ratio of the number of files to be used for the test dataset.
+    """
 
     filenames, labels = read_dataset_file(
         root_path,
-        dataset_file,
-        audio_dirname=audio_dirname,
-        annotation_dirname=annotation_dirname)
+        datasetfile_path,
+        audioroot_relpath=audioroot_relpath,
+        annroot_relpath=annroot_relpath)
     label_set = label_subset if label_subset else set.union(*labels)
     label_list = sorted(list(label_set))
 
@@ -217,6 +232,7 @@ def split_dataset(
     for file_label_set in labels:
         if len(file_label_set) > 1:
             multilabel = True
+            break
 
     if multilabel:
 
@@ -231,13 +247,13 @@ def split_dataset(
         X_train, y_train, X_test, y_test = iterative_train_test_split(np.array(filenames), sparse_labels, test_size=test_size)
 
         # write dataset files
-        for set_name, X in [('train', X_train), ('test', X_test)]:
-            set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
-            with open(set_filename, 'w') as set_file:
+        for subset_name, X in [('train', X_train), ('test', X_test)]:
+            subsetfile_path = datasetfile_path.replace('.csv', f'.{subset_name}.csv')
+            with open(subsetfile_path, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in label_list])))
                 for i in range(X.shape[0]):
                     set_file.write(f'{X[i,0]}\n')
-                print(f'{set_filename} written')
+                print(f'{subsetfile_path} written')
         
     else:
 
@@ -252,30 +268,37 @@ def split_dataset(
             stratify=labels)
 
         # write dataset files
-        for set_name, X in [('train', X_train), ('test', X_test)]:
-            set_filename = dataset_file.replace('.csv', f'.{set_name}.csv')
-            with open(set_filename, 'w') as set_file:
+        for subset_name, X in [('train', X_train), ('test', X_test)]:
+            subsetfile_path = datasetfile_path.replace('.csv', f'.{subset_name}.csv')
+            with open(subsetfile_path, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
                 for filename in X:
                     set_file.write(f'{filename}\n')
-                print(f'{set_filename} written')
+                print(f'{subsetfile_path} written')
 
 
 def dataset_stat_per_file(
         root_path,
-        dataset_file,
-        audio_dirname='audio',
-        annotation_dirname='annotations'):
-    """Counts files and sum file durations per label in dataset"""
+        datasetfile_path,
+        audioroot_relpath='audio',
+        annroot_relpath='annotations'):
+    """Counts files and sum file durations per label in dataset
+    
+    Args:
+        root_path: root path of the audio and (optionally) annotation files.
+        datasetfile_path: file containing a list of audio file paths relative to root_path
+        audioroot_relpath: root path of the audio files, relative to root_path
+        annroot_relpath: root path of the annotation files, relative to root_path
+    """
 
     d_num = defaultdict(int)
     d_dur = defaultdict(float)
 
     filenames, labels = read_dataset_file(
         root_path,
-        dataset_file,
-        audio_dirname=audio_dirname,
-        annotation_dirname=annotation_dirname
+        datasetfile_path,
+        audioroot_relpath=audioroot_relpath,
+        annroot_relpath=annroot_relpath
     )
     for filename, label in tqdm(zip(filenames, labels)):
         for l in label:
@@ -292,20 +315,23 @@ def dataset_stat_per_file(
 
 def dataset_stat_per_example(
         root_path,
-        dataset_file,
-        tfrecord_path,
+        datasetfile_path,
+        tfrecordroot_path,
         class_list,
         batch_size=32,
-        audio_dirname='audio',
-        annotation_dirname='annotations'):
-    """Counts batches per label in dataset_file.
+        audioroot_relpath='audio',
+        annroot_relpath='annotations'):
+    """Counts batches per label in datasetfile_path.
     
     Args:
-        dataset_file: file containing a list of audio filenames, relative to root_path
-        tfrecord_path: directory containing the tfrecords
+        root_path: root path of the audio and (optionally) annotation files.
+        datasetfile_path: file containing a list of audio file paths relative to root_path
+        tfrecordroot_path: directory containing the tfrecords
         class_list: list of the classes used in the dataset (the label ids in the tfrecords are
             indices in this class_list)
         batch_size: batch size
+        audioroot_relpath: root path of the audio files, relative to root_path
+        annroot_relpath: root path of the annotation files, relative to root_path
 
     Returns:
         n_batches: number of batches
@@ -315,12 +341,12 @@ def dataset_stat_per_example(
 
     files, labels = read_dataset_file(
         root_path,
-        dataset_file,
-        audio_dirname=audio_dirname,
-        annotation_dirname=annotation_dirname,
+        datasetfile_path,
+        audioroot_relpath=audioroot_relpath,
+        annroot_relpath=annroot_relpath,
         replace_ext='.tf')
     
-    files = [os.path.join(tfrecord_path, f) for f in files]
+    files = [os.path.join(tfrecordroot_path, f) for f in files]
 
     dataset = tf.data.TFRecordDataset(files)
     dataset = dataset.map(lambda data: serialized2data(data, class_list))
