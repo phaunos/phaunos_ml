@@ -301,13 +301,13 @@ def dataset_stat_per_file(
         annroot_relpath=annroot_relpath
     )
     for filename, label in tqdm(zip(filenames, labels)):
+        audio = audioread.audio_open(
+            os.path.join(
+                root_path,
+                filename
+            ))
         for l in label:
             d_num[l] += 1
-            audio = audioread.audio_open(
-                os.path.join(
-                    root_path,
-                    filename
-                ))
             d_dur[l] += audio.duration
         
     return d_num, d_dur
