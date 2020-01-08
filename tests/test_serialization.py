@@ -2,7 +2,7 @@ import pytest
 import os
 import tensorflow as tf
 import numpy as np
-import librosa
+import soundfile as sf
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
 from phaunos_ml.utils.annotation_utils import read_annotation_file
@@ -20,7 +20,10 @@ class TestTFRecord:
 
     @pytest.fixture(scope="class")
     def audio_data(self):
-        return librosa.load(os.path.join(DATA_PATH, AUDIOFILE_RELPATH), sr=None)
+        y, sr = sf.read(os.path.join(DATA_PATH, AUDIOFILE_RELPATH))
+        y = np.atleast_2d(np.asfortranarray(y).T) # y.shape is [n_channels, n_samples]
+
+        return y, sr
     
     @pytest.fixture(scope="class")
     def annotation_set(self):

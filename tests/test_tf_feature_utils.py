@@ -12,9 +12,10 @@ import tensorflow as tf
 from phaunos_ml.utils import tf_feature_utils
 
 
-NUM_EXAMPLES = 50
+N_EXAMPLES = 50
 AUDIO_LENGTH = 50000
 SR = 22050
+N_CHANNELS = 3
 BATCH_SIZE = 8
 
 N_FFT = 512
@@ -30,7 +31,8 @@ class TestMelSpectrogram:
 
     @pytest.fixture(scope="class")
     def data(self):
-        return (np.random.rand(NUM_EXAMPLES, AUDIO_LENGTH) * 2 - 1).astype(np.float32)
+        # generate data in format NCHW
+        return (np.random.rand(N_EXAMPLES, N_CHANNELS, 1, AUDIO_LENGTH) * 2 - 1).astype(np.float32)
 
     @pytest.fixture(scope="class")
     def melspec(self):
@@ -49,27 +51,28 @@ class TestMelSpectrogram:
 
         dataset = tf.data.Dataset.from_tensor_slices(data)
         dataset = dataset.batch(BATCH_SIZE)
-        dataset = dataset.map(lambda data: melspec.process(data))
+        dataset = dataset.map(lambda data: melspec.process(tf.squeeze(data,2)))
 
         count = 0
         for batch in dataset:
             for d in batch:
-                librosa_mel_spec = librosa.feature.melspectrogram(                
-                    y=data[count],
-                    sr=SR,
-                    n_fft=N_FFT,
-                    hop_length=HOP_LENGTH,
-                    win_length=N_FFT,
-                    n_mels=N_MELS,
-                    fmin=FMIN,
-                    fmax=FMAX,
-                    center=False,
-                    power=1.0,
-                    norm=None,
-                    htk=True
-                )
+                for c in range(N_CHANNELS):
+                    librosa_mel_spec = librosa.feature.melspectrogram(                
+                        y=np.squeeze(data,2)[count,c],
+                        sr=SR,
+                        n_fft=N_FFT,
+                        hop_length=HOP_LENGTH,
+                        win_length=N_FFT,
+                        n_mels=N_MELS,
+                        fmin=FMIN,
+                        fmax=FMAX,
+                        center=False,
+                        power=1.0,
+                        norm=None,
+                        htk=True
 
-                for t in range(d.shape[1]):
-                    assert (np.all(np.abs(d[:,t].numpy() - librosa_mel_spec[:,t]) < np.abs(librosa_mel_spec[:,t] * MAX_ERROR)))
+                    )
+
+                    assert (np.all(np.abs(d[c].numpy() - librosa_mel_spec) < np.abs(librosa_mel_spec * MAX_ERROR)))
                 count += 1
-        
+            

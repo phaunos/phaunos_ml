@@ -7,7 +7,12 @@ import matplotlib.pyplot as plt
 
 
 """
-Utils for extracting features and making fixed-sized examples.
+Utils for extracting features and making fixed-sized examples
+in NCHW format, where:
+    N = number of examples
+    C = number of channels
+    H = dimension 1 of the feature
+    W = dimension 2 of the feature
 """
 
 
@@ -89,50 +94,46 @@ class MelSpecExtractor:
             json.dump(d, f)
 
     def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
-        """
-        If mask, mask_sr (the sampling rate of the mask) and mask_min_dur
-        (minimum total duration, in seconds, of positive mask values in a segment) are set,
-        two arrays are returned: one with segments containing True (or 1s) mask value
-        and one with the remaining segments.
+        """Compute mel spectrogram.
+
+        Args:
+            audio: [n_channels, n_samples]
+            sr: sample rate
+            mask: boolean mask
+            mask_sr: mask sample rate
+            mask_min_dur: minimum total duration, in seconds, of
+                positive mask values in a segment
+
+        Returns a list of feature arrays representing the fixed-sized examples
+        (in format NCHW), a boolean mask and the times boundaries of the examples.
         """
 
         if sr != self.sr:
             raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
-        if len(audio.shape) != 1:
-            raise ValueError('Only mono audio files are allowed')
         if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
             raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
 
+        n_channels = audio.shape[0]
+
         # Compute mel spectrogram
-        mel_sp = librosa.feature.melspectrogram(
-            y=audio, sr=sr,
+        mel_sp = np.array([librosa.feature.melspectrogram(
+            y=audio[c], sr=sr,
             n_mels=self.n_mels,
             fmin=self.fmin, fmax=self.fmax,
             n_fft=self.n_fft, hop_length=self.hop_length
-        ).astype(self.dtype)
+        ).astype(self.dtype) for c in range(n_channels)])
         
-        # Create overlapping examples. Pad last example to cover the whole signal.
-        n_frames = mel_sp.shape[1]
-        num_examples = int(np.ceil(max(0, (n_frames - self.feature_size)) / self.example_hop_size) + 1)
-        pad_size = (num_examples - 1) * self.example_hop_size + self.feature_size - n_frames
-        mel_sp = np.pad(
-            mel_sp,
-            ((0, 0), (0, pad_size)),
-            mode='constant',
-            constant_values=0
-        )
+        # Create overlapping examples
+        segments = seq2frames(mel_sp, self.feature_size, self.example_hop_size)
         if self.log:
-            mel_sp = np.log(mel_sp + LOG_OFFSET)
+            segments = np.log(segments + LOG_OFFSET)
 
-        shape = (num_examples, mel_sp.shape[0], self.feature_size)
-        strides = (mel_sp.strides[1] * self.example_hop_size,) + mel_sp.strides
-
-        segments = np.lib.stride_tricks.as_strided(mel_sp, shape=shape, strides=strides)
-        mask_segments = np.ones(num_examples, dtype=np.bool)
-
+        # Build mask and times arrays
+        n_segments = segments.shape[0]
+        mask_segments = np.ones(n_segments, dtype=np.bool)
         times = []
         start = 0
-        for i in range(num_examples):
+        for i in range(n_segments):
             end = start + self.feature_size - 1
             times.append((start/self.feature_rate, end/self.feature_rate))
             if not (mask is None):
@@ -216,44 +217,36 @@ class AudioSegmentExtractor:
             json.dump(d, f)
 
     def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
-        """
-        If mask, mask_sr (the sampling rate of the mask) and mask_min_dur
-        (minimum total duration, in seconds, of positive mask values in a segment) are set,
-        two arrays are returned: one with segments containing True (or 1s) mask value
-        and one with the remaining segments.
+        """Compute fixed-sized audio chunks.
+
+        Args:
+            audio: [n_channels, n_samples]
+            sr: sample rate
+            mask: boolean mask
+            mask_sr: mask sample rate
+            mask_min_dur: minimum total duration, in seconds, of
+                positive mask values in a segment
+
+        Returns a list of feature arrays representing the fixed-sized examples
+        (in format NCHW), a boolean mask and the times boundaries of the examples.
         """
 
         if sr != self.sr:
             raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
-        if len(audio.shape) != 1:
-            raise ValueError('Only mono audio files are allowed')
         if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
             raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
         
+        audio = np.expand_dims(audio, 1) # to CHW
 
-        # Create overlapping segments. Pad last example to cover the whole signal.
+        # Create overlapping segments
+        segments = seq2frames(audio, self.feature_size, self.example_hop_size)
 
-        num_segments = int(np.ceil(max(0, (audio.size - self.feature_size)) / self.example_hop_size) + 1)
-        pad_size = (num_segments - 1) * self.example_hop_size + self.feature_size - audio.size
-        audio = np.pad(
-            audio,
-            (0, pad_size),
-            mode='constant',
-            constant_values=0
-        )
-
-        # reshape audio to (1, len(audio))
-        audio = np.expand_dims(audio, 0)
-
-        shape = (num_segments, audio.shape[0], self.feature_size)
-        strides = (audio.strides[1] * self.example_hop_size,) + audio.strides
-
-        segments =  np.lib.stride_tricks.as_strided(audio, shape=shape, strides=strides)
-
-        mask_segments = np.ones(num_segments, dtype=np.bool)
+        # Build mask and times arrays
+        n_segments = segments.shape[0]
+        mask_segments = np.ones(n_segments, dtype=np.bool)
         times = []
         start = 0
-        for i in range(num_segments):
+        for i in range(n_segments):
             end = start + self.feature_size - 1
             times.append((start/self.sr, end/self.sr))
             if not (mask is None):
@@ -273,3 +266,38 @@ class AudioSegmentExtractor:
     def __repr__(self):
         t = type(self)        
         return '{}.{}. Config: {}'.format(t.__module__, t.__qualname__, self.__dict__)
+
+
+def seq2frames(data, frame_len, frame_hop_len):
+    """Reorganize sequence data into frames.
+
+    Args:
+        data: sequence of data with shape (C, H, T), where
+            C in the number of channels, H the size of the first dimension of the feature
+            (e.g. H=1 for audio and H=num_mel_bands for mel spectrograms) and T the number
+            of time bins in the sequence.
+        frame_len: length of each frame
+        frame_hop_len: hop length between frames
+
+    Returns:
+        Data frames with shape (n_frames, C, H, frame_len).
+        Last example is 0-padded to cover the whole sequence
+    """
+    
+    C, H, T = data.shape
+    
+    # Pad last example to cover the whole sequence
+    n_frames = int(np.ceil(max(0, (T - frame_len)) / frame_hop_len) + 1)
+    pad_size = (n_frames - 1) * frame_hop_len + frame_len - T
+    data = np.pad(
+        data,
+        ((0, 0),(0,0),(0,pad_size)),
+        mode='constant',
+        constant_values=0
+    )
+
+    shape = (n_frames, C, H, frame_len)
+    strides = (frame_hop_len*data.strides[-1],) + data.strides
+    return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
+
+

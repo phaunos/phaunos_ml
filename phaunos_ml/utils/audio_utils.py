@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 import numpy as np
-import librosa
+import soundfile as sf
 
 from .tf_serialization_utils import serialize_data
 from .annotation_utils import read_annotation_file, get_labels_in_range
@@ -44,7 +44,8 @@ def audiofile2tfrecord(
     """
 
     # read audio
-    y, sr = librosa.load(os.path.join(root_path, audiofile_relpath), sr=None)
+    audio, sr = sf.read(os.path.join(root_path, audiofile_relpath))
+    audio = np.atleast_2d(np.asfortranarray(audio).T) # audio.shape is [n_channels, n_samples]
 
     # read annotations
     if annfile_relpath:
@@ -54,7 +55,8 @@ def audiofile2tfrecord(
 
     if activity_detector:
         # compute frame-based mask
-        fb_mask = activity_detector.process(y)
+        # NOTE: the activity detection is performed on the first channel only !
+        fb_mask = activity_detector.process(audio[0])
         fb_mask_sr = activity_detector.frame_rate
     else:
         fb_mask = None
@@ -62,7 +64,7 @@ def audiofile2tfrecord(
 
 
     audio2tfrecord(
-        y,
+        audio,
         sr,
         outdir_path,
         audiofile_relpath.replace('.wav', '.tf'),
@@ -88,7 +90,7 @@ def audio2tfrecord(
     from audio data and write to a tfrecord.
 
     Args:
-        audio: mono audio data (np array)
+        audio: audio data (np array)
         sr: sample rate
         outdir_path: path of the output directory.
         tfrecord_relpath: relative path to which the tfrecord will be written in outdir_path.
@@ -119,7 +121,7 @@ def audio2tfrecord(
             # Last example's end time is set to original audio file duration
             # to avoid mislabeling.
             if i == features.shape[0] - 1:
-                end_time = len(audio) / sr
+                end_time = audio.shape[-1] / sr
             labels = get_labels_in_range(annotation_set, start_time, end_time) \
                 if annotation_set else set()
             sdata = serialize_data(
@@ -160,7 +162,8 @@ def audio2data(
     """
 
     # compute mask from activity_detection
-    fb_mask = activity_detector.process(audio)
+    # NOTE: the activity detection is performed on the first channel only !
+    fb_mask = activity_detector.process(audio[0])
     fb_mask_sr = activity_detector.frame_rate
 
     # compute features, segment-based mask and segment boundaries

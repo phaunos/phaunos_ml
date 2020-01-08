@@ -32,7 +32,7 @@ class MelSpectrogram:
         Compute mel-spectrogram from tf.Tensor.
         See tests/test_feature_utils.py for an example.
         Args:
-            data: (batch_size, audio_length)
+            data: Tensor with shape (batch_size, n_channels, audio_length).
         """
 
         # compute spectogram
@@ -51,4 +51,4 @@ class MelSpectrogram:
 
         # transpose to get the frequency along the height and time along the width,
         # because height is first in Tensorflow's convention (input formats are NHWC or NCHW)
-        return tf.transpose(melspec, [0, 2, 1])
+        return tf.transpose(melspec, [0, 1, 3, 2])

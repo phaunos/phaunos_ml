@@ -72,11 +72,11 @@ def time_warp(data, w=80):
     between [0,w] towards the left or the right.
 
     Args:
-        data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        data: batch of spectrogram. Shape [n_examples, n_freq_bins, n_time_bins, n_channels] (NHWC)
         w: warp parameter (see above)
     """
 
-    _, n_freq_bins, n_time_bins, channels = tf.shape(data)
+    _, n_freq_bins, n_time_bins, _ = tf.shape(data)
 
     # pick a random point along the time axis in [w,n_time_bins-w]
     t = tf.random.uniform(
@@ -113,7 +113,7 @@ def time_mask(data, tmax):
     and t0 is randomly picked in [0,n_time_bins-t[
 
     Args:
-        data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        data: batch of spectrogram. Shape [n_examples, n_freq_bins, n_time_bins, n_channels] (NHWC)
         tmax: mask parameter (see above)
     """
 
@@ -138,7 +138,7 @@ def frequency_mask(data, fmax):
     and f0 is randomly picked in [0,n_freq_bins-f[
 
     Args:
-        data: batch of spectrogram. Shape [batch_size, n_freq_bins, n_time_bins, 1]
+        data: batch of spectrogram. Shape [n_examples, n_freq_bins, n_time_bins, n_channels] (NHWC)
         tmax: mask parameter (see above)
     """
 
