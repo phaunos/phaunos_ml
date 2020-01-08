@@ -31,12 +31,12 @@ class Mixup:
             raise ValueError('weights must be in [0,1], with min_weight <= max_weight')
         self.dist = tfp.distributions.Uniform(low=min_weight, high=max_weight)
 
-    def process(self, batch1, label1, batch2, label2, batch_size):
+    def process(self, batch1, label1, batch2, label2):
         """Mixup the data.
         The weight sampled from self.dist is applied to batch2.
         """
 
-        w = tf.cast(self.dist.sample(sample_shape=batch_size), batch1.dtype)
+        w = tf.cast(self.dist.sample(sample_shape=tf.shape(batch1)[0]), batch1.dtype)
 
         # broadcast w to batch shape
         w = tf.expand_dims(w, -1)
