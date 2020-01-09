@@ -133,7 +133,7 @@ def audio2tfrecord(
             )
             if mask[i]:
                 writer_pos.write(sdata)
-            else:
+            elif fb_mask is not None:
                 writer_neg.write(sdata)
 
 
