@@ -343,10 +343,9 @@ def dataset_stat_per_example(
         root_path,
         datasetfile_path,
         audioroot_relpath=audioroot_relpath,
-        annroot_relpath=annroot_relpath,
-        replace_ext='.tf')
+        annroot_relpath=annroot_relpath)
     
-    files = [os.path.join(tfrecordroot_path, f) for f in files]
+    files = [os.path.join(tfrecordroot_path, f).replace('.wav', '.tf') for f in files]
 
     dataset = tf.data.TFRecordDataset(files)
     dataset = dataset.map(lambda data: serialized2data(data, class_list))
