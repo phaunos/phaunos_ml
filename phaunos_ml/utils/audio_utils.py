@@ -141,8 +141,8 @@ def audio2data(
         audio,
         sr,
         feature_extractor,
-        activity_detector,
         class_list,
+        activity_detector=None,
         annotation_set=None,
         mask_min_dur=None
 ):
@@ -153,8 +153,8 @@ def audio2data(
         audio: mono audio data (np array)
         sr: sample rate
         feature_extractor: see :func:`.feature_utils`.
-        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
         class_list: list of classes used as the reference for one-hot label encoding.
+        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
         annotation_set: set of annotation objects.
         mask_min_dur: minimum total duration of positive mask frames.
     Returns:
@@ -163,8 +163,12 @@ def audio2data(
 
     # compute mask from activity_detection
     # NOTE: the activity detection is performed on the first channel only !
-    fb_mask = activity_detector.process(audio[0])
-    fb_mask_sr = activity_detector.frame_rate
+    if activity_detector:
+        fb_mask = activity_detector.process(audio[0])
+        fb_mask_sr = activity_detector.frame_rate
+    else:
+        fb_mask = None
+        fb_mask_sr = None
 
     # compute features, segment-based mask and segment boundaries
     features, mask, times = feature_extractor.process(audio, sr, fb_mask, fb_mask_sr, mask_min_dur)
@@ -177,19 +181,20 @@ def audio2data(
         if i == features.shape[0] - 1:
             # Last example's end time is set to original audio file duration
             # to avoid mislabeling.
-            end_time = start_time_offset + len(audio) / sr
-        labels = get_labels_in_range(annotation_set, start_time, end_time) if annotation_set else set()
+            end_time = audio.shape[-1] / sr
+        labels = get_labels_in_range(annotation_set, start_time, end_time) \
+            if annotation_set else set()
 
         # one-hot encode labels
         ind = np.where(np.in1d(
             sorted(class_list),
             list(labels)))[0]
-        one_hot = np.zeros((len(class_list),))
-        np.put(one_hot, ind, 1)
+        one_hot = np.zeros((len(class_list),), np.bool)
+        np.put(one_hot, ind, True)
 
         if mask[i]:
             examples_pos.append((features[i], one_hot))
-        else:
+        elif fb_mask is not None:
             examples_neg.append((features[i], one_hot))
 
     return examples_pos, examples_neg
