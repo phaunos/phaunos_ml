@@ -2,11 +2,10 @@ import pytest
 import os
 import tensorflow as tf
 import numpy as np
-import soundfile as sf
 
 from phaunos_ml.utils.feature_utils import MelSpecExtractor
 from phaunos_ml.utils.annotation_utils import read_annotation_file
-from phaunos_ml.utils.audio_utils import audiofile2tfrecord, audio2data
+from phaunos_ml.utils.audio_utils import load_audio, audiofile2tfrecord, audio2data
 from phaunos_ml.utils.tf_serialization_utils import serialized2example, serialized2data
 
 
@@ -20,10 +19,7 @@ class TestTFRecord:
 
     @pytest.fixture(scope="class")
     def audio_data(self):
-        y, sr = sf.read(os.path.join(DATA_PATH, AUDIOFILE_RELPATH))
-        y = np.atleast_2d(np.asfortranarray(y).T) # y.shape is [n_channels, n_samples]
-
-        return y, sr
+        return load_audio(os.path.join(DATA_PATH, AUDIOFILE_RELPATH))
     
     @pytest.fixture(scope="class")
     def annotation_set(self):
@@ -90,10 +86,7 @@ class TestAudio2Data:
 
     @pytest.fixture(scope="class")
     def audio_data(self):
-        y, sr = sf.read(os.path.join(DATA_PATH, AUDIOFILE_RELPATH))
-        y = np.atleast_2d(np.asfortranarray(y).T) # y.shape is [n_channels, n_samples]
-
-        return y, sr
+        return load_audio(os.path.join(DATA_PATH, AUDIOFILE_RELPATH))
     
     @pytest.fixture(scope="class")
     def annotation_set(self):

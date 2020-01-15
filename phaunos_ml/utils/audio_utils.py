@@ -12,6 +12,11 @@ Utils to convert audio files to tfrecords.
 """
 
 
+def load_audio(audiofile_path):
+    # load audio file as (n_channels, n_frames) array.
+    audio, sr = sf.read(audiofile_path)
+    return np.atleast_2d(np.asfortranarray(audio).T), sr
+
 def seconds2hms(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
@@ -44,8 +49,7 @@ def audiofile2tfrecord(
     """
 
     # read audio
-    audio, sr = sf.read(os.path.join(root_path, audiofile_relpath))
-    audio = np.atleast_2d(np.asfortranarray(audio).T) # audio.shape is [n_channels, n_samples]
+    audio, sr = load_audio(os.path.join(root_path, audiofile_relpath))
 
     # read annotations
     if annfile_relpath:
