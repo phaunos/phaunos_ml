@@ -111,6 +111,25 @@ def set_annotation_labels(from_annotation_set, to_annotation_set, overlap_ratio=
     return to_annotation_set_new
 
 
+def map_annotation_set(ann_set, mapping):
+    """Map annotation label set to new label set,
+    according to mapping. Unmapped label are removed.
+
+    Args:
+        ann_set: annotation set
+        mapping: dictionary with key = label_id and value = new_label_id
+    """
+    
+    new_ann_set = set()
+
+    for ann in ann_set:
+            new_label_set = frozenset([mapping[l] for l in ann.label_set if l in mapping.keys()])
+            if new_label_set:
+                new_ann_set.add(Annotation(ann.start_time, ann.end_time, new_label_set))
+
+    return new_ann_set
+
+
 def get_labels_in_range(annotation_set, start_time, end_time, overlap_ratio=0.5):
     """"Get all labels from an annotation set in a time range."""
     label_set = set()
