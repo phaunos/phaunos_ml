@@ -4,7 +4,7 @@ import numpy as np
 import soundfile as sf
 
 from .tf_serialization_utils import serialize_data
-from .annotation_utils import read_annotation_file, get_labels_in_range
+from .annotation_utils import Annotation, read_annotation_file, write_annotation_file, get_labels_in_range, _get_overlap
 
 
 """
@@ -202,3 +202,51 @@ def audio2data(
             examples_neg.append((features[i], one_hot))
 
     return examples_pos, examples_neg
+
+
+def split_audio(audiofile_path, annfile_path, out_audiodir_path, out_anndir_path):
+    """Split audio according to annotation data."""
+
+    # read audio
+    audio, sr = load_audio(audiofile_path)
+
+    # read annotations
+    annotation_set = read_annotation_file(annfile_path)
+
+    # -1 end time means end of file
+    # because it messes up computation below, we replace it by file duration
+    file_duration = audio.shape[1] / sr
+    annotation_set = set([Annotation(a.start_time, a.end_time if a.end_time > -1 else file_duration, a.label_set) for a in annotation_set])
+
+    # make subsets of overlapping annotations
+    ann_subsets = []
+    for ann in annotation_set:
+        ind = _get_overlapping_annotation_subset(ann, ann_subsets)
+        if ind < 0:
+            ann_subsets.append([ann])
+        else:
+            ann_subsets[ind].append(ann)
+
+    # for each subset, make audio and annotation files
+    for ann_subset in ann_subsets:
+        start_time = min([ann.start_time for ann in ann_subset])
+        end_time = max([ann.end_time for ann in ann_subset])
+        file_basename = os.path.basename(audiofile_path).replace('.wav', f'.{int(start_time*1000)}.{int(end_time*1000)}')
+        out_audiofile_path = os.path.join(out_audiodir_path, file_basename + '.wav')
+        out_annfile_path = os.path.join(out_anndir_path, file_basename + '.ann')
+        sf.write(
+            out_audiofile_path,
+            audio[:,int(start_time*sr):int(end_time*sr)].T, sr, 'PCM_16')
+        with open(out_annfile_path, 'w') as f:
+            new_ann_subset = set([Annotation(a.start_time-start_time, a.end_time-start_time, a.label_set) for a in ann_subset])
+            write_annotation_file(new_ann_subset, out_annfile_path)
+
+def _get_overlapping_annotation_subset(annotation, annotation_subsets):
+
+    for i, ann_subset in enumerate(annotation_subsets):
+        start_time = min([ann.start_time for ann in ann_subset])
+        end_time = max([ann.end_time for ann in ann_subset])
+        if _get_overlap(start_time, end_time, annotation.start_time, annotation.end_time) > 0:
+            return i
+
+    return -1
