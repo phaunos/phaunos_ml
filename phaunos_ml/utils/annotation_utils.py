@@ -146,3 +146,31 @@ def get_labels_in_range(annotation_set, start_time, end_time, overlap_ratio=0.5)
 def _get_overlap(start1, end1, start2, end2):
     """Get overlap between the intervals [start1, end1] and [start2, end2]."""
     return max(0, min(end1, end2) - max(start1, start2))
+
+
+def _set_end_time_when_missing(annotation_set, file_duration):
+    # -1 end time means end of file
+    # because it can mess up some computation, we replace it by file duration
+    return set([Annotation(a.start_time, a.end_time if a.end_time > -1 else file_duration, a.label_set) for a in annotation_set])
+
+
+def _make_subsets_of_overlapping_annotations(annotation_set):
+    ann_subsets = []
+    for ann in annotation_set:
+        ind = _get_overlapping_annotation_subset(ann, ann_subsets)
+        if ind < 0:
+            ann_subsets.append([ann])
+        else:
+            ann_subsets[ind].append(ann)
+    return ann_subsets
+
+
+def _get_overlapping_annotation_subset(annotation, annotation_subsets):
+
+    for i, ann_subset in enumerate(annotation_subsets):
+        start_time = min([ann.start_time for ann in ann_subset])
+        end_time = max([ann.end_time for ann in ann_subset])
+        if _get_overlap(start_time, end_time, annotation.start_time, annotation.end_time) > 0:
+            return i
+
+    return -1

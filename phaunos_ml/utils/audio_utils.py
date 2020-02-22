@@ -4,7 +4,10 @@ import numpy as np
 import soundfile as sf
 
 from .tf_serialization_utils import serialize_data
-from .annotation_utils import Annotation, read_annotation_file, write_annotation_file, get_labels_in_range, _get_overlap
+from .annotation_utils import Annotation, read_annotation_file, \
+    write_annotation_file, get_labels_in_range, _get_overlap, \
+    _set_end_time_when_missing, _make_subsets_of_overlapping_annotations, \
+    _get_overlapping_annotation_subset
 
 
 """
@@ -215,17 +218,10 @@ def split_audio(audiofile_path, annfile_path, out_audiodir_path, out_anndir_path
 
     # -1 end time means end of file
     # because it messes up computation below, we replace it by file duration
-    file_duration = audio.shape[1] / sr
-    annotation_set = set([Annotation(a.start_time, a.end_time if a.end_time > -1 else file_duration, a.label_set) for a in annotation_set])
+    annotation_set = _set_end_time_when_missing(annotation_set, audio.shape[1] / sr)
 
     # make subsets of overlapping annotations
-    ann_subsets = []
-    for ann in annotation_set:
-        ind = _get_overlapping_annotation_subset(ann, ann_subsets)
-        if ind < 0:
-            ann_subsets.append([ann])
-        else:
-            ann_subsets[ind].append(ann)
+    ann_subsets = _make_subsets_of_overlapping_annotations(annotation_set)
 
     # for each subset, make audio and annotation files
     for ann_subset in ann_subsets:
@@ -240,13 +236,3 @@ def split_audio(audiofile_path, annfile_path, out_audiodir_path, out_anndir_path
         with open(out_annfile_path, 'w') as f:
             new_ann_subset = set([Annotation(a.start_time-start_time, a.end_time-start_time, a.label_set) for a in ann_subset])
             write_annotation_file(new_ann_subset, out_annfile_path)
-
-def _get_overlapping_annotation_subset(annotation, annotation_subsets):
-
-    for i, ann_subset in enumerate(annotation_subsets):
-        start_time = min([ann.start_time for ann in ann_subset])
-        end_time = max([ann.end_time for ann in ann_subset])
-        if _get_overlap(start_time, end_time, annotation.start_time, annotation.end_time) > 0:
-            return i
-
-    return -1
