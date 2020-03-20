@@ -68,6 +68,8 @@ def read_annotation_file(annotation_filename):
     """
     annotation_set = set()
     for line in open(annotation_filename, 'r'):
+        if line.startswith('#'):
+            continue
         start_time_str, end_time_str, label_set_str = line.strip().split(',')
         annotation_set.add(Annotation(float(start_time_str), float(end_time_str), {int(i) for i in label_set_str.split('#') if i}))
     return annotation_set
