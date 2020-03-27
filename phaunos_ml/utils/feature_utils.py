@@ -166,6 +166,191 @@ class MelSpecExtractor:
         return '{}.{}. Config: {}'.format(t.__module__, t.__qualname__, self.__dict__)
 
 
+class CorrelogramExtractor:
+    """Extractor of correlogram series, preminarily used for vehicle detection.
+    """
+
+    def __init__(
+            self, 
+            max_delay,
+            sr=48000,
+            n_fft=1024,
+            hop_length=1024,
+            example_duration=5*8192./48000,
+            example_hop_duration=5*8192./48000,
+            dtype=np.float32):
+
+        """
+        Args:
+            (Default values are those of the first version of vehicle detection.)
+            max_delay (float):              max delay between the microphones
+                                            (i.e. distance between the microphone / 340)
+            sr (int):                       sample rate, in Hertz
+            n_fft (int):                    analysis window size
+            hop_length (int):               analysis window hop size
+            example_duration (float):       example duration
+            example_hop_duration (float):   example hop duration
+
+        Initializes the extractor.
+        """
+
+        self.max_delay = max_delay
+        self.sr = sr
+        self.n_fft = n_fft
+        self.hop_length = hop_length
+        self.example_duration = example_duration
+        self.example_hop_duration = example_hop_duration
+        self.dtype = dtype
+
+        # Indices of the correlogram corresponding to
+        # -max_delay and +max_delay
+        self.ind_min = int(n_fft / 2 - max_delay * sr)
+        self.ind_max = int(n_fft / 2 + max_delay * sr)
+
+        if self.ind_min < 0 or self.ind_max >= n_fft:
+            raise ValueError(f'n_fft duration ({n_fft/sr:.3f}) must' +
+                             ' be larger than 2 * max_delay ({2*max_delay})')
+
+
+    @classmethod
+    def from_config(cls, config_file):
+        config = json.load(open(config_file, 'r'))
+        obj = cls(**config)
+        obj.dtype = NP_DTYPE[config['dtype']].value
+        return obj
+
+    @property
+    def feature_rate(self):
+        return self.sr / self.hop_length
+
+    @property
+    def feature_size(self):
+        return int(self.example_duration * self.feature_rate)
+    
+    @property
+    def feature_shape(self):
+        return [self.ind_max-self.ind_min, self.feature_size]
+    
+    @property
+    def example_hop_size(self):
+        return int(self.example_hop_duration * self.feature_rate)
+
+    @property
+    def actual_example_duration(self):
+        return self.feature_size / self.feature_rate
+
+    @property
+    def actual_example_hop_duration(self):
+        return self.example_hop_size / self.feature_rate
+    
+    def config2file(self, filename):
+        with open(filename, 'w') as f:
+            d = self.__dict__.copy()
+            d['dtype'] = NP_DTYPE(self.dtype).name
+            json.dump(d, f)
+
+    @staticmethod
+    def gccphat(a1, a2, norm=True, fftshift=True, min_d=1e-6):
+        """
+        Computes GCC-PHAT.
+
+        Args:
+            a1 (np.array):      First array, with shape (n_frames, n_fft)
+            a2 (np.array):      Second array, with shape (n_frames, n_fft)
+            norm (bool):        Normalize to [-1,1]
+            fftshift (bool):    Shift the zero-frequency component to the center of the spectrum.
+            offset (float):     Min value of d in the calculus below, to avoid division by 0.
+        
+        Returns an array of correlograms.
+        """
+
+        c = np.fft.rfft(a1) * np.conj(np.fft.rfft(a2))
+        d = np.abs(c)
+        d[d<min_d] = min_d
+        c = np.fft.irfft(c / d)
+        if norm:
+            c /= np.max(np.abs(c), axis=1)[:,np.newaxis]
+        if fftshift:
+            c = np.fft.fftshift(c, axes=1)
+        return c
+
+    def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
+        """Computes series of Generalized Cross-Correlation with Phase Transform (GCC-PHAT).
+
+        Args:
+            audio: [2, n_samples].
+            sr: sample rate
+            mask: boolean mask
+            mask_sr: mask sample rate
+            mask_min_dur: minimum total duration, in seconds, of
+                positive mask values in a segment
+
+        Returns a list of feature arrays representing the fixed-sized examples
+        (in format NCHW), a boolean mask and the times boundaries of the examples.
+        """
+
+        n_channels = audio.shape[0]
+
+        if sr != self.sr:
+            raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
+        if n_channels != 2:
+            raise ValueError(f'Audio must have two channels (found {n_channels})')
+        if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
+            raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
+        
+        # Create overlapping frames
+        frames = seq2frames(
+            np.reshape(audio, (n_channels, 1, audio.shape[1])),
+            self.n_fft,
+            self.hop_length)
+
+        # Compute GCC-PHAT and get correlograms corresponding to [-max_delay,max_delay[
+        frames = self.gccphat(frames[:,0,0], frames[:,1,0])[:,self.ind_min:self.ind_max]
+
+        # Reshape to match seq2frames input format
+        frames = frames.swapaxes(0, 1)[np.newaxis,:]
+
+        # Create overlapping examples
+        segments = seq2frames(frames, self.feature_size, self.example_hop_size)
+
+        # Build mask and times arrays
+        n_segments = segments.shape[0]
+        mask_segments = np.ones(n_segments, dtype=np.bool)
+        times = []
+        start = 0
+        for i in range(n_segments):
+            end = start + self.feature_size - 1
+            times.append((start/self.feature_rate, end/self.feature_rate))
+            if not (mask is None):
+                start_mask = int(start / self.feature_rate * mask_sr)
+                end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
+                # count positive mask values in the segment
+                n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
+                # if the total duration of the positive mask frames is above the threshold, set segment mask to True
+                mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
+            start += self.example_hop_size
+        
+        return segments, mask_segments, times
+
+
+    def plot(self, mel_sp):
+        return specshow(
+            mel_sp,
+            sr=self.sr,
+            hop_length=self.hop_length,
+            fmin=self.fmin,
+            fmax=self.fmax,
+            cmap='gray_r',
+            x_axis='time',
+            y_axis='mel'
+        )
+
+
+    def __repr__(self):
+        t = type(self)        
+        return '{}.{}. Config: {}'.format(t.__module__, t.__qualname__, self.__dict__)
+
+
 class AudioSegmentExtractor:
     """
     Raw audio segment extractor.
