@@ -60,7 +60,7 @@ def dataset2tfrecords(
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         with_labels=True,
-        n_processes=1
+        n_processes=None
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     for all audio files in the dataset file and write to tfrecords.
