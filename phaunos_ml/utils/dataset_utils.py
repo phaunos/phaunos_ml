@@ -324,14 +324,16 @@ def dataset_stat_per_file(
         root_path,
         datasetfile_path,
         audioroot_relpath='audio',
-        annroot_relpath='annotations'):
-    """Counts files and sum file durations per label in dataset
+        annroot_relpath='annotations',
+        get_duration=True):
+    """Counts files and (optionally) sum file durations per label in dataset
     
     Args:
         root_path: root path of the audio and (optionally) annotation files.
         datasetfile_path: file containing a list of audio file paths relative to root_path
         audioroot_relpath: root path of the audio files, relative to root_path
         annroot_relpath: root path of the annotation files, relative to root_path
+        get_duration: set to True to get total duration per label
     """
 
     d_num = defaultdict(int)
@@ -344,14 +346,16 @@ def dataset_stat_per_file(
         annroot_relpath=annroot_relpath
     )
     for filename, label in tqdm(zip(filenames, labels)):
-        audio = audioread.audio_open(
-            os.path.join(
-                root_path,
-                filename
-            ))
+        if get_duration:
+            audio = audioread.audio_open(
+                os.path.join(
+                    root_path,
+                    filename
+                ))
         for l in label:
             d_num[l] += 1
-            d_dur[l] += audio.duration
+            if get_duration:
+                d_dur[l] += audio.duration
         
     return d_num, d_dur
 
