@@ -249,8 +249,7 @@ class CorrelogramExtractor:
             d['dtype'] = NP_DTYPE(self.dtype).name
             json.dump(d, f)
 
-    @staticmethod
-    def gccphat(a1, a2, norm=True, fftshift=True, min_d=1e-6):
+    def gccphat(self, a1, a2, norm=True, fftshift=True, min_d=1e-6):
         """
         Computes GCC-PHAT.
 
