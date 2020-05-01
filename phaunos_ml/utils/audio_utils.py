@@ -33,7 +33,8 @@ def audiofile2tfrecord(
         feature_extractor,
         annfile_relpath=None,
         activity_detector=None,
-        min_activity_dur=None
+        min_activity_dur=None,
+        label_subset=None
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from an audio file and write to a tfrecord.
@@ -46,6 +47,7 @@ def audiofile2tfrecord(
         annfile_relpath: path, relative to root_path, to the annotation file, as described in :func:`.annotation_utils`. If set, labels are also written to the tfrecord.
         activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
         min_activity_dur: minimum duration of activity to be found in an example.
+        label_subset (set): label subset. If None, all labels are written.
     Returns:
         Writes one tfrecord in <outdir_path>/<audiofile_relpath> (changing the extension of the file
         from '.wav' to '.tf'.
@@ -79,7 +81,9 @@ def audiofile2tfrecord(
         annotation_set,
         fb_mask=fb_mask,
         fb_mask_sr=fb_mask_sr,
-        mask_min_dur=min_activity_dur)
+        mask_min_dur=min_activity_dur,
+        label_subset=label_subset
+    )
 
 
 def audio2tfrecord(
@@ -91,7 +95,8 @@ def audio2tfrecord(
         annotation_set=None,
         fb_mask=None,
         fb_mask_sr=None,
-        mask_min_dur=None
+        mask_min_dur=None,
+        label_subset=None
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from audio data and write to a tfrecord.
@@ -106,6 +111,7 @@ def audio2tfrecord(
         fb_mask: frame-based mask.
         fb_mask_sr: frame-based mask sample rate.
         mask_min_dur: minimum total duration of positive mask frames.
+        label_subset (set): label subset. If None, all labels are written.
     Returns:
         Writes one tfrecord in <outdir_path>/<audiofile_relpath> (changing the extension of the file
         from '.wav' to '.tf'.
@@ -131,6 +137,8 @@ def audio2tfrecord(
                 end_time = audio.shape[-1] / sr
             labels = get_labels_in_range(annotation_set, start_time, end_time) \
                 if annotation_set else set()
+            if label_subset:
+                labels = labels.intersection(label_subset)
             sdata = serialize_data(
                 tfrecord_relpath,
                 start_time,

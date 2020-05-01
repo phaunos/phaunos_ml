@@ -29,7 +29,8 @@ def data2tfrecord(
         min_activity_dur=None,
         audioroot_relpath='audio',
         annroot_relpath='annotations',
-        with_labels=True
+        with_labels=True,
+        label_subset=None
 ):
     """Target function for dataset2tfrecord multiprocessing"""
 
@@ -47,7 +48,8 @@ def data2tfrecord(
         feature_extractor,
         annfile_relpath=annfile_relpath,
         activity_detector=activity_detector,
-        min_activity_dur=min_activity_dur
+        min_activity_dur=min_activity_dur,
+        label_subset=label_subset
     )
 
 def dataset2tfrecords(
@@ -60,6 +62,7 @@ def dataset2tfrecords(
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         with_labels=True,
+        label_subset=None,
         n_processes=None
 ):
     """ Compute fixed-size examples with features (and optionally labels)
@@ -75,6 +78,7 @@ def dataset2tfrecords(
         audioroot_relpath: root path of the audio files, relative to root_path
         annroot_relpath: root path of the annotation files, relative to root_path
         with_labels: whether to include labels in the tfrecords or not.
+        label_subset (set): label subset. If None, all labels are written.
         n_processes: number of processes to split the computation in.
                      If None, os.cpu_count() is used (multiprocessing.Pool's default)
             
@@ -105,7 +109,8 @@ def dataset2tfrecords(
                 'min_activity_dur': min_activity_dur,
                 'audioroot_relpath': audioroot_relpath,
                 'annroot_relpath': annroot_relpath,
-                'with_labels': with_labels
+                'with_labels': with_labels,
+                'label_subset': label_subset
             } 
         )
     pool.close()
