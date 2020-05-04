@@ -215,7 +215,14 @@ class CorrelogramExtractor:
     @classmethod
     def from_config(cls, config_file):
         config = json.load(open(config_file, 'r'))
-        obj = cls(**config)
+        obj = cls(
+            config['max_delay'],
+            config['sr'],
+            config['n_fft'],
+            config['hop_length'],
+            config['example_duration'],
+            config['example_hop_duration']
+        )
         obj.dtype = NP_DTYPE[config['dtype']].value
         return obj
 
