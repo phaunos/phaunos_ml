@@ -275,7 +275,9 @@ class CorrelogramExtractor:
         d[d<min_d] = min_d
         c = np.fft.irfft(c / d)
         if norm:
-            c /= np.max(np.abs(c), axis=1)[:,np.newaxis]
+            d = np.max(np.abs(c), axis=1)
+            d[d<min_d] = min_d
+            c /= d[:,np.newaxis]
         if fftshift:
             c = np.fft.fftshift(c, axes=1)
         return c
