@@ -15,7 +15,7 @@ $ git clone git@bitbucket.org:securaxisteam/phaunos_ml.git
 $ cd /path/to/phaunos_ml
 $ git checkout securaxis-tf2
 $ export PYTHONPATH=$PYTHONPATH:/path/to/nsb_aad:/path/to/phaunos_ml
-$ conda create -n phaunos_ml python=3.6
+$ conda create -n phaunos_ml python=3.7
 $ conda activate phaunos_ml
-$ pip install -r requirements_{cpu,gpu}.txt
+$ pip install -r requirements.txt
 ```
