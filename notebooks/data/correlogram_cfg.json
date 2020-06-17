@@ -1,0 +1,10 @@
+{"max_delay": 0.00044117647058823526,
+ "sr": 48000,
+  "n_fft": 1024,
+  "hop_length": 1024,
+  "example_duration": 0.8533333333333334,
+  "example_hop_duration": 0.8533333333333334,
+  "dtype": "F32",
+  "ind_min": 490,
+  "ind_max": 533
+}
