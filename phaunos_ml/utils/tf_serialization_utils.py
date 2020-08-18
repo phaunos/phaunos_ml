@@ -83,12 +83,16 @@ def serialized2example(serialized_data):
 
 def serialized2data(
         serialized_data,
-        class_list):
-    """Generates data, filename, segment time bounds and one hot encoded labels .
+        class_list,
+        one_hot=True
+):
+    """Generates data, filename, segment time bounds and binary (if one_hot=False)
+    or one hot encoded (if one_hot=True) labels.
 
     Args:
         serialized_data: data serialized using utils.tf_utils.serialize_data
         class_list: list of class ids (used for one-hot encoding the labels)
+        one_hot: whether to encode labels as one-hot vector. If False class_list
     """
 
     example = serialized2example(serialized_data)
@@ -96,7 +100,25 @@ def serialized2data(
     # reshape data to original shape
     data = tf.reshape(tf.io.decode_raw(example['data'], tf.float32), example['shape'])
 
-    # one-hot encode labels
-    one_hot = labelstr2onehot(example['labels'], class_list)
+    if one_hot:
+        label = labelstr2onehot(example['labels'], class_list)
+    else:
+        tf.debugging.assert_equal(class_list.shape, (2,))
+        tf.debugging.Assert(
+            tf.math.logical_or(
+                tf.math.equal(
+                    tf.strings.to_number(example['labels'], out_type=tf.int32),
+                    class_list[0]),
+                tf.math.equal(
+                    tf.strings.to_number(example['labels'], out_type=tf.int32),
+                    class_list[1])
+            ),
+            [example['labels'], class_list]
+        )
+        label = tf.cond(
+            tf.strings.to_number(example['labels'], out_type=tf.int32)==class_list[0],
+            true_fn=lambda:tf.Variable(0, dtype=tf.int32),
+            false_fn=lambda:tf.Variable(1, dtype=tf.int32),
+        )
 
-    return (data, one_hot, example['filename'], example['times'])
+    return (data, label, example['filename'], example['times'])
