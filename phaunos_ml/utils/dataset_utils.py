@@ -121,6 +121,7 @@ def dataset2tfrecords(
 def tfrecords2dataset(
         tfrecords,
         class_list,
+        one_hot_label=True,
         batch_size = 8,
         interleave_cycle_length=10,
         shuffle_size=1000,
@@ -131,6 +132,8 @@ def tfrecords2dataset(
     Args:
         tfrecords: list of TFRecords
         class_list: list of the class indices used in the dataset (used for one-hot encoding the label)
+        one_hot_label (bool): whether to return the label as one-hot vector
+            (multi-class classification) or binary value (binary classification)
         batch_size (int)
         interleave_cycle_length (int): see Tensorflow documentation:
             https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave
@@ -160,7 +163,9 @@ def tfrecords2dataset(
     # deserialize to feature and one-hot encoded labels
     dataset = dataset.map(lambda x: serialized2data(
         x,
-        class_list),
+        class_list,
+        one_hot_label=one_hot_label
+    ),
         num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     # shuffle, repeat and batch
