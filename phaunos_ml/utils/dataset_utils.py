@@ -9,6 +9,7 @@ from scipy.sparse import lil_matrix
 from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
 import tensorflow as tf
+from tensorflow.python.framework import dtypes
 
 from .audio_utils import audiofile2tfrecord
 from .annotation_utils import read_annotation_file, ANN_EXT
@@ -115,6 +116,59 @@ def dataset2tfrecords(
         )
     pool.close()
     pool.join()
+
+
+def tfrecords2dataset(
+        tfrecords,
+        class_list,
+        batch_size = 8,
+        interleave_cycle_length=10,
+        shuffle_size=1000,
+        repeat=True
+):
+    """Generate a tf.data.Dataset from TFRecords.
+
+    Args:
+        tfrecords: list of TFRecords
+        class_list: list of the class indices used in the dataset (used for one-hot encoding the label)
+        batch_size (int)
+        interleave_cycle_length (int): see Tensorflow documentation:
+            https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave
+        shuffle_size (int): size of the buffer to be shuffled. 0 means no shuffle. A too big
+            buffer might not fit in memory.
+        repeat (bool): whether to repeat or not the dataset.
+    """
+
+    # Get list of files
+    files = tf.convert_to_tensor(tfrecords, dtype=dtypes.string)
+    files = tf.data.Dataset.from_tensor_slices(files)
+
+    # Shuffle the files.
+    # We can take a buffer of the size of the list, because it only contains strings
+    # so the buffer will easily fits in memory.
+    files = files.shuffle(len(tfrecords), reshuffle_each_iteration=True)
+
+    # Read TFrecords
+    if interleave_cycle_length < 2:
+        dataset = tf.data.TFRecordDataset(files)
+    else:
+        dataset = files.interleave(
+            lambda x: tf.data.TFRecordDataset(x),
+            cycle_length=interleave_cycle_length,
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    # deserialize to feature and one-hot encoded labels
+    dataset = dataset.map(lambda x: serialized2data(
+        x,
+        class_list),
+        num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    # shuffle, repeat and batch
+    if shuffle_size:
+        dataset = dataset.shuffle(shuffle_size)
+    if repeat:
+        dataset = dataset.repeat()
+    return dataset.batch(batch_size, drop_remainder=True)
 
 
 def create_subset(
