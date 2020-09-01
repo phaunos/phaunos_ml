@@ -123,6 +123,7 @@ def tfrecords2dataset(
         class_list,
         one_hot_label=True,
         batch_size = 8,
+        shuffle_files=True,
         interleave_cycle_length=10,
         shuffle_size=1000,
         repeat=True
@@ -135,6 +136,7 @@ def tfrecords2dataset(
         one_hot_label (bool): whether to return the label as one-hot vector
             (multi-class classification) or binary value (binary classification)
         batch_size (int)
+        shuffle_files (bool): shuffle tfrecord files before loading them
         interleave_cycle_length (int): see Tensorflow documentation:
             https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave
         shuffle_size (int): size of the buffer to be shuffled. 0 means no shuffle. A too big
@@ -149,7 +151,8 @@ def tfrecords2dataset(
     # Shuffle the files.
     # We can take a buffer of the size of the list, because it only contains strings
     # so the buffer will easily fits in memory.
-    files = files.shuffle(len(tfrecords), reshuffle_each_iteration=True)
+    if shuffle_files:
+        files = files.shuffle(len(tfrecords), reshuffle_each_iteration=True)
 
     # Read TFrecords
     if interleave_cycle_length < 2:
@@ -173,7 +176,8 @@ def tfrecords2dataset(
         dataset = dataset.shuffle(shuffle_size)
     if repeat:
         dataset = dataset.repeat()
-    return dataset.batch(batch_size, drop_remainder=True)
+    dataset = dataset.batch(batch_size, drop_remainder=True)
+    return dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 
 def create_subset(
@@ -465,7 +469,7 @@ def dataset_stat_per_example(
     n_batches = 0
     n_examples_per_class = np.zeros((len(class_list),), dtype=np.int32)
 
-    for _, one_hot, _, _  in dataset:
+    for _, one_hot, _, _  in tqdm(dataset):
         n_examples_per_class += np.count_nonzero(one_hot, axis=0)
         n_batches += 1
 
