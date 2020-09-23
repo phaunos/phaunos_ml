@@ -135,7 +135,7 @@ class MelSpecExtractor:
         start = 0
         for i in range(n_segments):
             end = start + self.feature_size - 1
-            times.append((start/self.feature_rate, end/self.feature_rate))
+            times.append((start/self.feature_rate, (end+1)/self.feature_rate))
             if not (mask is None):
                 start_mask = int(start / self.feature_rate * mask_sr)
                 end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
@@ -328,7 +328,7 @@ class CorrelogramExtractor:
         start = 0
         for i in range(n_segments):
             end = start + self.feature_size - 1
-            times.append((start/self.feature_rate, end/self.feature_rate))
+            times.append((start/self.feature_rate, (end+1)/self.feature_rate))
             if not (mask is None):
                 start_mask = int(start / self.feature_rate * mask_sr)
                 end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
@@ -441,7 +441,7 @@ class AudioSegmentExtractor:
         start = 0
         for i in range(n_segments):
             end = start + self.feature_size - 1
-            times.append((start/self.sr, end/self.sr))
+            times.append((start/self.sr, (end+1)/self.sr))
             if not (mask is None):
                 start_mask = int(start / self.sr * mask_sr)
                 end_mask = int(min(len(mask) - 1, end / self.sr * mask_sr))
