@@ -72,3 +72,12 @@ class TestAnnotations:
         assert set_annotation_labels(annotation_set_1, annotation_set_2) == annotation_set_1to2
 
 
+    def test_timestamped_annotation(self):
+
+        annotation_set = set()
+        annotation_set.add(Annotation(2, 2, set([2,5])))
+        annotation_set.add(Annotation(4.8, 4.8, set([3])))
+
+        assert get_labels_in_range(annotation_set, 0, 2) == set([2, 5])
+        assert not get_labels_in_range(annotation_set, 2, 4)
+        assert get_labels_in_range(annotation_set, 4, 6) == set([3])

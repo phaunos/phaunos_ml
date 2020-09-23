@@ -22,10 +22,10 @@ class PhaunosAnnotationError(Exception):
 class Annotation:
 
     def __init__(self, start_time=0, end_time=-1, label_set=frozenset()):
-        if start_time < 0 or (end_time != -1 and end_time <= start_time):
+        if start_time < 0 or (end_time != -1 and end_time < start_time):
             raise PhaunosAnnotationError(
                 "Wrong time parameters: start_time must be " +
-                "greater than or equal to 0 and end_time must be greater than start_time " +
+                "greater than or equal to 0 and end_time must be greater than or equal to start_time " +
                 f"(got {start_time} and {end_time})"
             )
 
@@ -133,9 +133,17 @@ def map_annotation_set(ann_set, mapping):
 
 
 def get_labels_in_range(annotation_set, start_time, end_time, overlap_ratio=0.5):
-    """"Get all labels from an annotation set in a time range."""
+    """"Get all labels from an annotation set in a time range.
+    If the annotation is a timestamp, i.e. ann.start_time == ann.end_time,
+    the overlap_ratio is not used. If the timestamped annotation is
+    in the time range, get it.
+    """
     label_set = set()
     for ann in annotation_set:
+        if ann.start_time == ann.end_time:
+            if ann.start_time > start_time and ann.start_time <= end_time:
+                label_set.update(ann.label_set)
+            continue
         overlap = _get_overlap(ann.start_time,
                                ann.end_time if ann.end_time != -1 else end_time,
                                start_time,
