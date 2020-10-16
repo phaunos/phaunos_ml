@@ -31,7 +31,8 @@ def data2tfrecord(
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         with_labels=True,
-        label_subset=None
+        label_subset=None,
+        **kwargs
 ):
     """Target function for dataset2tfrecord multiprocessing"""
 
@@ -50,7 +51,8 @@ def data2tfrecord(
         annfile_relpath=annfile_relpath,
         activity_detector=activity_detector,
         min_activity_dur=min_activity_dur,
-        label_subset=label_subset
+        label_subset=label_subset,
+        **kwargs
     )
 
 def dataset2tfrecords(
@@ -64,7 +66,8 @@ def dataset2tfrecords(
         annroot_relpath='annotations',
         with_labels=True,
         label_subset=None,
-        n_processes=None
+        n_processes=None,
+        **kwargs
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     for all audio files in the dataset file and write to tfrecords.
@@ -92,6 +95,16 @@ def dataset2tfrecords(
 
     lines = open(datasetfile_path, 'r').readlines()
 
+    kwds={
+        'activity_detector': activity_detector,
+        'min_activity_dur': min_activity_dur,
+        'audioroot_relpath': audioroot_relpath,
+        'annroot_relpath': annroot_relpath,
+        'with_labels': with_labels,
+        'label_subset': label_subset
+    } 
+    kwds={**kwds, **kwargs}
+
     # Start processes
     pool = multiprocessing.Pool(n_processes)
     for line in lines:
@@ -105,14 +118,7 @@ def dataset2tfrecords(
                 outdir_path,
                 feature_extractor            
             ),
-            kwds={
-                'activity_detector': activity_detector,
-                'min_activity_dur': min_activity_dur,
-                'audioroot_relpath': audioroot_relpath,
-                'annroot_relpath': annroot_relpath,
-                'with_labels': with_labels,
-                'label_subset': label_subset
-            } 
+            kwds=kwds
         )
     pool.close()
     pool.join()

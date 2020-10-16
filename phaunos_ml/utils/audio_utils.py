@@ -96,7 +96,8 @@ def audio2tfrecord(
         fb_mask=None,
         fb_mask_sr=None,
         mask_min_dur=None,
-        label_subset=None
+        label_subset=None,
+        **kwargs
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from audio data and write to a tfrecord.
@@ -135,7 +136,7 @@ def audio2tfrecord(
             # to avoid mislabeling.
             if i == features.shape[0] - 1:
                 end_time = audio.shape[-1] / sr
-            labels = get_labels_in_range(annotation_set, start_time, end_time) \
+            labels = get_labels_in_range(annotation_set, start_time, end_time, **kwargs) \
                 if annotation_set else set()
             if label_subset:
                 labels = labels.intersection(label_subset)
@@ -159,7 +160,8 @@ def audio2data(
         class_list,
         activity_detector=None,
         annotation_set=None,
-        mask_min_dur=None
+        mask_min_dur=None,
+        **kwargs
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from audio data.
@@ -197,7 +199,7 @@ def audio2data(
             # Last example's end time is set to original audio file duration
             # to avoid mislabeling.
             end_time = audio.shape[-1] / sr
-        labels = get_labels_in_range(annotation_set, start_time, end_time) \
+        labels = get_labels_in_range(annotation_set, start_time, end_time, **kwargs) \
             if annotation_set else set()
 
         # one-hot encode labels
