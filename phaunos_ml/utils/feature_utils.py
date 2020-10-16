@@ -178,6 +178,7 @@ class CorrelogramExtractor:
             hop_length=1024,
             example_duration=5*8192./48000,
             example_hop_duration=5*8192./48000,
+            gcc_norm=False,
             dtype=np.float32):
 
         """
@@ -190,6 +191,7 @@ class CorrelogramExtractor:
             hop_length (int):               analysis window hop size
             example_duration (float):       example duration
             example_hop_duration (float):   example hop duration
+            gcc_norm (bool):                whether to normalize every gcc independently in the correlogram
 
         Initializes the extractor.
         """
@@ -200,6 +202,7 @@ class CorrelogramExtractor:
         self.hop_length = hop_length
         self.example_duration = example_duration
         self.example_hop_duration = example_hop_duration
+        self.gcc_norm = gcc_norm
         self.dtype = dtype
 
         # Indices of the correlogram corresponding to
@@ -221,7 +224,8 @@ class CorrelogramExtractor:
             config['n_fft'],
             config['hop_length'],
             config['example_duration'],
-            config['example_hop_duration']
+            config['example_hop_duration'],
+            config['gcc_norm']
         )
         obj.dtype = NP_DTYPE[config['dtype']].value
         return obj
@@ -256,7 +260,7 @@ class CorrelogramExtractor:
             d['dtype'] = NP_DTYPE(self.dtype).name
             json.dump(d, f)
 
-    def gccphat(self, a1, a2, norm=True, fftshift=True, min_d=1e-6):
+    def gccphat(self, a1, a2, norm=False, fftshift=True, min_d=1e-6):
         """
         Computes GCC-PHAT.
 
@@ -313,7 +317,7 @@ class CorrelogramExtractor:
             self.hop_length)
 
         # Compute GCC-PHAT and get correlograms corresponding to [-max_delay,max_delay[
-        frames = self.gccphat(frames[:,0,0], frames[:,1,0])[:,self.ind_min:self.ind_max]
+        frames = self.gccphat(frames[:,0,0], frames[:,1,0], norm=self.gcc_norm)[:,self.ind_min:self.ind_max]
 
         # Reshape to match seq2frames input format
         frames = frames.swapaxes(0, 1)[np.newaxis,:]
