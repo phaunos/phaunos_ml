@@ -34,7 +34,8 @@ def audiofile2tfrecord(
         annfile_relpath=None,
         activity_detector=None,
         min_activity_dur=None,
-        label_subset=None
+        label_subset=None,
+        **kwargs
 ):
     """ Compute fixed-size examples with features (and optionally labels)
     from an audio file and write to a tfrecord.
@@ -82,7 +83,8 @@ def audiofile2tfrecord(
         fb_mask=fb_mask,
         fb_mask_sr=fb_mask_sr,
         mask_min_dur=min_activity_dur,
-        label_subset=label_subset
+        label_subset=label_subset,
+        **kwargs
     )
 
 
