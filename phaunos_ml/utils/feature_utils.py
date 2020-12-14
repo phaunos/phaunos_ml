@@ -29,6 +29,8 @@ class MelSpecExtractor:
     Log mel spectrogram extractor.
     See https://librosa.github.io/librosa/generated/librosa.feature.melspectrogram.html
     for features parameters.
+
+    If example_duration == -1, it is set to the audio signal duration.
     """
 
     def __init__(
@@ -54,6 +56,11 @@ class MelSpecExtractor:
         self.example_duration = example_duration
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
+        
+        if example_duration != -1:
+            self.feature_size = int(self.example_duration * self.feature_rate)
+        else:
+            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -68,7 +75,11 @@ class MelSpecExtractor:
 
     @property
     def feature_size(self):
-        return int(self.example_duration * self.feature_rate)
+        return self.__feature_size
+
+    @feature_size.setter
+    def feature_size(self, feature_size):
+        self.__feature_size = feature_size
     
     @property
     def feature_shape(self):
@@ -126,8 +137,18 @@ class MelSpecExtractor:
             center=True
         ).astype(self.dtype) for c in range(n_channels)])
         
-        # Create overlapping examples
-        segments = seq2frames(mel_sp, self.feature_size, self.example_hop_size, center=False)
+        if self.example_duration != -1:
+            # Create overlapping examples
+            segments = seq2frames(
+                mel_sp,
+                self.feature_size,
+                self.example_hop_size,
+                center=False)
+        else:
+            # Create just one segment
+            self.feature_size = mel_sp.shape[-1]
+            segments = np.expand_dims(mel_sp, 0)
+
         if self.log:
             segments = np.log(segments + LOG_OFFSET)
 
@@ -178,8 +199,8 @@ class CorrelogramExtractor:
             sr (int):                       sample rate, in Hertz
             n_fft (int):                    analysis window size
             hop_length (int):               analysis window hop size
-            example_duration (float):       example duration
-            example_hop_duration (float):   example hop duration
+            example_duration (float):       example duration. -1 to set it to the audio signal duration.
+            example_hop_duration (float):   example hop duration. -1 to set it to the audio signal duration.
             gcc_norm (bool):                whether to normalize every gcc independently in the correlogram
 
         Initializes the extractor.
@@ -203,6 +224,10 @@ class CorrelogramExtractor:
             raise ValueError(f'n_fft duration ({n_fft/sr:.3f}) must' +
                              ' be larger than 2 * max_delay ({2*max_delay})')
 
+        if example_duration != -1:
+            self.feature_size = int(self.example_duration * self.feature_rate)
+        else:
+            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -225,7 +250,11 @@ class CorrelogramExtractor:
 
     @property
     def feature_size(self):
-        return int(self.example_duration * self.feature_rate)
+        return self.__feature_size
+
+    @feature_size.setter
+    def feature_size(self, feature_size):
+        self.__feature_size = feature_size
     
     @property
     def feature_shape(self):
@@ -307,17 +336,22 @@ class CorrelogramExtractor:
             center=True)
 
         # Compute GCC-PHAT and get correlograms corresponding to [-max_delay,max_delay[
-        frames = self.gccphat(frames[:,0,0], frames[:,1,0], norm=self.gcc_norm)[:,self.ind_min:self.ind_max]
+        gccs = self.gccphat(frames[:,0,0], frames[:,1,0], norm=self.gcc_norm)[:,self.ind_min:self.ind_max]
 
         # Reshape to match seq2frames input format
-        frames = frames.swapaxes(0, 1)[np.newaxis,:]
+        gccs = gccs.swapaxes(0, 1)[np.newaxis,:]
 
-        # Create overlapping examples
-        segments = seq2frames(
-            frames,
-            self.feature_size,
-            self.example_hop_size,
-            center=False)
+        if self.example_duration != -1:
+            # Create overlapping examples
+            segments = seq2frames(
+                gccs,
+                self.feature_size,
+                self.example_hop_size,
+                center=False)
+        else:
+            # Create just one segment
+            self.feature_size = gccs.shape[-1]
+            segments = np.expand_dims(gccs, 0)
 
         # Build mask and times arrays
         n_segments = segments.shape[0]
@@ -359,6 +393,11 @@ class AudioSegmentExtractor:
         self.example_duration = example_duration
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
+        
+        if example_duration != -1:
+            self.feature_size = int(self.example_duration * self.sr)
+        else:
+            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -369,7 +408,11 @@ class AudioSegmentExtractor:
 
     @property
     def feature_size(self):
-        return int(self.example_duration * self.sr)
+        return self.__feature_size
+
+    @feature_size.setter
+    def feature_size(self, feature_size):
+        self.__feature_size = feature_size
     
     @property
     def feature_shape(self):
@@ -415,12 +458,17 @@ class AudioSegmentExtractor:
         
         audio = np.expand_dims(audio, 1) # to CHW
 
-        # Create overlapping segments
-        segments = seq2frames(
-            audio,
-            self.feature_size,
-            self.example_hop_size,
-            center=False)
+        if self.example_duration != -1:
+            # Create overlapping examples
+            segments = seq2frames(
+                audio,
+                self.feature_size,
+                self.example_hop_size,
+                center=False)
+        else:
+            # Create just one segment
+            self.feature_size = audio.shape[-1]
+            segments = np.expand_dims(audio, 0)
 
         # Build mask and times arrays
         n_segments = segments.shape[0]
