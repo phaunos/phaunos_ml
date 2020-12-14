@@ -1,7 +1,6 @@
 import numpy as np
 from enum import Enum
 import librosa
-from librosa.display import specshow
 import json
 import matplotlib.pyplot as plt
 
@@ -146,20 +145,6 @@ class MelSpecExtractor:
             start += self.example_hop_size
         
         return segments, mask_segments, times
-
-
-    def plot(self, mel_sp):
-        return specshow(
-            mel_sp,
-            sr=self.sr,
-            hop_length=self.hop_length,
-            fmin=self.fmin,
-            fmax=self.fmax,
-            cmap='gray_r',
-            x_axis='time',
-            y_axis='mel'
-        )
-
 
     def __repr__(self):
         t = type(self)        
@@ -343,20 +328,6 @@ class CorrelogramExtractor:
             start += self.example_hop_size
         
         return segments, mask_segments, times
-
-
-    def plot(self, mel_sp):
-        return specshow(
-            mel_sp,
-            sr=self.sr,
-            hop_length=self.hop_length,
-            fmin=self.fmin,
-            fmax=self.fmax,
-            cmap='gray_r',
-            x_axis='time',
-            y_axis='mel'
-        )
-
 
     def __repr__(self):
         t = type(self)        
