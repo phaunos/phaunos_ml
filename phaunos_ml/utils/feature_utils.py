@@ -116,14 +116,18 @@ class MelSpecExtractor:
 
         # Compute mel spectrogram
         mel_sp = np.array([librosa.feature.melspectrogram(
-            y=audio[c], sr=sr,
+            y=audio[c],
+            sr=sr,
             n_mels=self.n_mels,
-            fmin=self.fmin, fmax=self.fmax,
-            n_fft=self.n_fft, hop_length=self.hop_length
+            fmin=self.fmin,
+            fmax=self.fmax,
+            n_fft=self.n_fft,
+            hop_length=self.hop_length,
+            center=True
         ).astype(self.dtype) for c in range(n_channels)])
         
         # Create overlapping examples
-        segments = seq2frames(mel_sp, self.feature_size, self.example_hop_size)
+        segments = seq2frames(mel_sp, self.feature_size, self.example_hop_size, center=False)
         if self.log:
             segments = np.log(segments + LOG_OFFSET)
 
@@ -299,7 +303,8 @@ class CorrelogramExtractor:
         frames = seq2frames(
             np.reshape(audio, (n_channels, 1, audio.shape[1])),
             self.n_fft,
-            self.hop_length)
+            self.hop_length,
+            center=True)
 
         # Compute GCC-PHAT and get correlograms corresponding to [-max_delay,max_delay[
         frames = self.gccphat(frames[:,0,0], frames[:,1,0], norm=self.gcc_norm)[:,self.ind_min:self.ind_max]
@@ -308,7 +313,11 @@ class CorrelogramExtractor:
         frames = frames.swapaxes(0, 1)[np.newaxis,:]
 
         # Create overlapping examples
-        segments = seq2frames(frames, self.feature_size, self.example_hop_size)
+        segments = seq2frames(
+            frames,
+            self.feature_size,
+            self.example_hop_size,
+            center=False)
 
         # Build mask and times arrays
         n_segments = segments.shape[0]
@@ -407,7 +416,11 @@ class AudioSegmentExtractor:
         audio = np.expand_dims(audio, 1) # to CHW
 
         # Create overlapping segments
-        segments = seq2frames(audio, self.feature_size, self.example_hop_size)
+        segments = seq2frames(
+            audio,
+            self.feature_size,
+            self.example_hop_size,
+            center=False)
 
         # Build mask and times arrays
         n_segments = segments.shape[0]
@@ -436,7 +449,7 @@ class AudioSegmentExtractor:
         return '{}.{}. Config: {}'.format(t.__module__, t.__qualname__, self.__dict__)
 
 
-def seq2frames(data, frame_len, frame_hop_len):
+def seq2frames(data, frame_len, frame_hop_len, center=False):
     """Reorganize sequence data into frames.
 
     Args:
@@ -446,6 +459,7 @@ def seq2frames(data, frame_len, frame_hop_len):
             of time bins in the sequence.
         frame_len: length of each frame
         frame_hop_len: hop length between frames
+        center (bool): pad the time series so that frames are centered
 
     Returns:
         Data frames with shape (n_frames, C, H, frame_len).
@@ -453,13 +467,19 @@ def seq2frames(data, frame_len, frame_hop_len):
     """
     
     C, H, T = data.shape
-    
-    # Pad last example to cover the whole sequence
-    n_frames = int(np.ceil(max(0, (T - frame_len)) / frame_hop_len) + 1)
-    pad_size = (n_frames - 1) * frame_hop_len + frame_len - T
+
+    n_frames = T // frame_hop_len + 1
+
+    if center:
+        pad_before = frame_len // 2
+        pad_after = max(0, (n_frames - 1) * frame_hop_len + frame_len // 2 - T)
+    else:
+        pad_before = 0
+        pad_after = max(0, (n_frames - 1) * frame_hop_len + frame_len - T)
+
     data = np.pad(
         data,
-        ((0, 0),(0,0),(0,pad_size)),
+        ((0,0),(0,0),(pad_before,pad_after)),
         mode='constant',
         constant_values=0
     )
