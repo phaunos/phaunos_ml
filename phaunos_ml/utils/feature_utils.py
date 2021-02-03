@@ -57,10 +57,6 @@ class MelSpecExtractor:
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
         
-        if example_duration != -1:
-            self.feature_size = int(self.example_duration * self.feature_rate)
-        else:
-            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -75,12 +71,11 @@ class MelSpecExtractor:
 
     @property
     def feature_size(self):
-        return self.__feature_size
+        if self.example_duration != -1:
+            return int(self.example_duration * self.feature_rate)
+        else:
+            return -1
 
-    @feature_size.setter
-    def feature_size(self, feature_size):
-        self.__feature_size = feature_size
-    
     @property
     def feature_shape(self):
         return [self.n_mels, self.feature_size]
@@ -224,11 +219,6 @@ class CorrelogramExtractor:
             raise ValueError(f'n_fft duration ({n_fft/sr:.3f}) must' +
                              ' be larger than 2 * max_delay ({2*max_delay})')
 
-        if example_duration != -1:
-            self.feature_size = int(self.example_duration * self.feature_rate)
-        else:
-            self.feature_size = -1
-
     @classmethod
     def from_config(cls, config_file):
         config = json.load(open(config_file, 'r'))
@@ -250,11 +240,10 @@ class CorrelogramExtractor:
 
     @property
     def feature_size(self):
-        return self.__feature_size
-
-    @feature_size.setter
-    def feature_size(self, feature_size):
-        self.__feature_size = feature_size
+        if self.example_duration != -1:
+            return int(self.example_duration * self.feature_rate)
+        else:
+            return -1
     
     @property
     def feature_shape(self):
@@ -394,11 +383,6 @@ class AudioSegmentExtractor:
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
         
-        if example_duration != -1:
-            self.feature_size = int(self.example_duration * self.sr)
-        else:
-            self.feature_size = -1
-
     @classmethod
     def from_config(cls, config_file):
         config = json.load(open(config_file, 'r'))
@@ -408,11 +392,10 @@ class AudioSegmentExtractor:
 
     @property
     def feature_size(self):
-        return self.__feature_size
-
-    @feature_size.setter
-    def feature_size(self, feature_size):
-        self.__feature_size = feature_size
+        if self.example_duration != -1:
+            return int(self.example_duration * self.sr)
+        else:
+            return -1
     
     @property
     def feature_shape(self):
