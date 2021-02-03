@@ -321,7 +321,10 @@ def split_dataset(
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         label_subset=set(),
-        test_size=0.2):
+        ratio=0.2,
+        subset1_name='train',
+        subset2_name='valid'
+):
     """Split dataset in train and test sets (stratified).
     
     Args:
@@ -330,7 +333,9 @@ def split_dataset(
         audioroot_relpath: root path of the audio files, relative to root_path
         annroot_relpath: root path of the annotation files, relative to root_path
         label_subset: subset of labels to be kept.
-        test_size: ratio of the number of files to be used for the test dataset.
+        ratio: ratio of the number of files to be used for the 2nd subset.
+        subset1_name: name appended to the input dataset file for the 1st subset
+        subset2_name: name appended to the input dataset file for the 2nd subset
     """
 
     filenames, labels = read_dataset_file(
@@ -361,10 +366,10 @@ def split_dataset(
             sparse_labels[i, file_label_ind] = 1
 
         # multi-label stratified data split
-        X_train, y_train, X_test, y_test = iterative_train_test_split(np.array(filenames), sparse_labels, test_size=test_size)
+        X1, y1, X2, y2 = iterative_train_test_split(np.array(filenames), sparse_labels, test_size=ratio)
 
         # write dataset files
-        for subset_name, X in [('train', X_train), ('test', X_test)]:
+        for subset_name, X in [(subset1_name, X1), (subset2_name, X2)]:
             subsetfile_path = datasetfile_path.replace('.csv', f'.{subset_name}.csv')
             with open(subsetfile_path, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in label_list])))
@@ -378,14 +383,14 @@ def split_dataset(
         labels = [list(l)[0] for l in labels]
         
         # multi-label stratified data split
-        X_train, X_test, y_train, y_test = train_test_split(
+        X1, X2, y1, y2 = train_test_split(
             filenames,
             labels,
-            test_size=test_size,
+            test_size=ratio,
             stratify=labels)
 
         # write dataset files
-        for subset_name, X in [('train', X_train), ('test', X_test)]:
+        for subset_name, X in [(subset1_name, X1), (subset2_name, X2)]:
             subsetfile_path = datasetfile_path.replace('.csv', f'.{subset_name}.csv')
             with open(subsetfile_path, 'w') as set_file:
                 set_file.write('#class subset: {}\n'.format(','.join([str(i) for i in sorted(list(label_set))])))
@@ -435,24 +440,15 @@ def dataset_stat_per_file(
 
 
 def dataset_stat_per_example(
-        root_path,
         datasetfile_path,
         tfrecordroot_path,
-        class_list,
-        batch_size=32,
-        audioroot_relpath='audio',
-        annroot_relpath='annotations'):
+        batch_size=32):
     """Counts batches per label in datasetfile_path.
     
     Args:
-        root_path: root path of the audio and (optionally) annotation files.
         datasetfile_path: file containing a list of audio file paths relative to root_path
         tfrecordroot_path: directory containing the tfrecords
-        class_list: list of the classes used in the dataset (the label ids in the tfrecords are
-            indices in this class_list)
         batch_size: batch size
-        audioroot_relpath: root path of the audio files, relative to root_path
-        annroot_relpath: root path of the annotation files, relative to root_path
 
     Returns:
         n_batches: number of batches
@@ -460,13 +456,18 @@ def dataset_stat_per_example(
             number of examples for class class_list[i]    
     """
 
-    files, labels = read_dataset_file(
-        root_path,
-        datasetfile_path,
-        audioroot_relpath=audioroot_relpath,
-        annroot_relpath=annroot_relpath)
-    
-    files = [os.path.join(tfrecordroot_path, f).replace('.wav', '.tf') for f in files]
+    files = []
+    class_list = None
+    for line in open(datasetfile_path):
+        if line.startswith('#'):
+            # parse first line to get class list
+            class_list = [int(i) for i in line.split(':')[1].strip().split(',')]
+            continue
+        f = os.path.join(tfrecordroot_path, line.strip().replace('.wav', '.tf'))
+        if not os.path.isfile(f):
+            print(f'File {f} not found.')
+        else:
+            files.append(f)
 
     dataset = tf.data.TFRecordDataset(files)
     dataset = dataset.map(lambda data: serialized2data(data, class_list))
@@ -479,4 +480,4 @@ def dataset_stat_per_example(
         n_examples_per_class += np.count_nonzero(one_hot, axis=0)
         n_batches += 1
 
-    return n_batches, n_examples_per_class
+    return n_batches, n_examples_per_class, class_list
