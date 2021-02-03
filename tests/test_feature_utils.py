@@ -17,16 +17,15 @@ class TestFeaturesUtils:
         # Create frames of lenght 82 and hop length 19 (format NCHW)
         frame_len = 82
         frame_hop_len = 17
-        frames = seq2frames(seq, frame_len, frame_hop_len)
-        n_frames = frames.shape[0]
-        n_padding = (n_frames - 1) * frame_hop_len + frame_len - seq.shape[-1]
 
-        assert np.array_equal(
-            frames[0],
-            seq[:,:,:frame_len])
+        frames = seq2frames(seq, frame_len, frame_hop_len, center=False)
+        assert frames.shape[0] == 5000 // frame_hop_len + 1
         assert np.array_equal(
             frames[10],
             seq[:,:,10*frame_hop_len:10*frame_hop_len+frame_len])
+        
+        frames = seq2frames(seq, frame_len, frame_hop_len, center=True)
+        assert frames.shape[0] == 5000 // frame_hop_len + 1
         assert np.array_equal(
-            frames[n_frames-1,:,:,-n_padding-10:-n_padding],
-            seq[:,:,-10:])
+            frames[10],
+            seq[:,:,10*frame_hop_len-frame_len//2:10*frame_hop_len-frame_len//2+frame_len])

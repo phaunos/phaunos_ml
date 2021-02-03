@@ -39,21 +39,21 @@ class TestTFSerialization:
 
     def test_binarylabel(self):
 
-        class_list = tf.Variable([12, 34])
-        class_list_wrong = tf.Variable([12, 34, 56])
+        class_list = np.array([12, 34])
+        class_list_wrong = np.array([12, 34, 56])
 
         serialized1 = serialize_data('abc.wav', 1, 2, np.random.rand(3,4,5), [12])
         serialized2 = serialize_data('def.wav', 3, 4, np.random.rand(3,4,5), [34])
         serialized3 = serialize_data('ghi.wav', 5, 5, np.random.rand(3,4,5), [1])
 
-        data1 = serialized2data(serialized1, class_list, one_hot=False)
+        data1 = serialized2data(serialized1, class_list, one_hot_label=False)
         assert data1[1] == 0
 
-        data2 = serialized2data(serialized2, class_list, one_hot=False)
+        data2 = serialized2data(serialized2, class_list, one_hot_label=False)
         assert data2[1] == 1
 
         with pytest.raises(tf.errors.InvalidArgumentError):
-            data3 = serialized2data(serialized3, class_list, one_hot=False)
+            data3 = serialized2data(serialized3, class_list, one_hot_label=False)
         
         with pytest.raises(tf.errors.InvalidArgumentError):
-            data1 = serialized2data(serialized1, class_list_wrong, one_hot=False)
+            data1 = serialized2data(serialized1, class_list_wrong, one_hot_label=False)
