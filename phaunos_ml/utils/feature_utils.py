@@ -57,6 +57,10 @@ class MelSpecExtractor:
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
         
+        if self.example_duration != -1:
+            self.feature_size = int(self.example_duration * self.feature_rate)
+        else:
+            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -68,13 +72,6 @@ class MelSpecExtractor:
     @property
     def feature_rate(self):
         return self.sr / self.hop_length
-
-    @property
-    def feature_size(self):
-        if self.example_duration != -1:
-            return int(self.example_duration * self.feature_rate)
-        else:
-            return -1
 
     @property
     def feature_shape(self):
@@ -96,6 +93,7 @@ class MelSpecExtractor:
         with open(filename, 'w') as f:
             d = self.__dict__.copy()
             d['dtype'] = NP_DTYPE(self.dtype).name
+            del d['feature_size']
             json.dump(d, f)
 
     def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
@@ -220,6 +218,11 @@ class CorrelogramExtractor:
         if self.ind_min < 0 or self.ind_max >= n_fft:
             raise ValueError(f'n_fft duration ({n_fft/sr:.3f}) must' +
                              ' be larger than 2 * max_delay ({2*max_delay})')
+        
+        if self.example_duration != -1:
+            self.feature_size = int(self.example_duration * self.feature_rate)
+        else:
+            self.feature_size = -1
 
     @classmethod
     def from_config(cls, config_file):
@@ -241,13 +244,6 @@ class CorrelogramExtractor:
         return self.sr / self.hop_length
 
     @property
-    def feature_size(self):
-        if self.example_duration != -1:
-            return int(self.example_duration * self.feature_rate)
-        else:
-            return -1
-    
-    @property
     def feature_shape(self):
         return [self.ind_max-self.ind_min, self.feature_size]
     
@@ -267,6 +263,7 @@ class CorrelogramExtractor:
         with open(filename, 'w') as f:
             d = self.__dict__.copy()
             d['dtype'] = NP_DTYPE(self.dtype).name
+            del d['feature_size']
             json.dump(d, f)
 
     def gccphat(self, a1, a2, norm=False, fftshift=True, min_d=1e-6):
@@ -387,6 +384,11 @@ class AudioSegmentExtractor:
         self.example_hop_duration = example_hop_duration
         self.dtype = dtype
         
+        if self.example_duration != -1:
+            self.feature_size = int(self.example_duration * self.sr)
+        else:
+            self.feature_size = -1
+        
     @classmethod
     def from_config(cls, config_file):
         config = json.load(open(config_file, 'r'))
@@ -394,13 +396,6 @@ class AudioSegmentExtractor:
         obj.dtype = NP_DTYPE[config['dtype']].value
         return obj
 
-    @property
-    def feature_size(self):
-        if self.example_duration != -1:
-            return int(self.example_duration * self.sr)
-        else:
-            return -1
-    
     @property
     def feature_shape(self):
         return [1, self.feature_size]
@@ -421,6 +416,7 @@ class AudioSegmentExtractor:
         with open(filename, 'w') as f:
             d = self.__dict__.copy()
             d['dtype'] = NP_DTYPE(self.dtype).name
+            del d['feature_size']
             json.dump(d, f)
 
     def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
@@ -522,5 +518,3 @@ def seq2frames(data, frame_len, frame_hop_len, center=False):
     shape = (n_frames, C, H, frame_len)
     strides = (frame_hop_len*data.strides[-1],) + data.strides
     return np.lib.stride_tricks.as_strided(data, shape=shape, strides=strides)
-
-
