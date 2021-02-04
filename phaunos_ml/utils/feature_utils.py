@@ -42,8 +42,8 @@ class MelSpecExtractor:
             fmax=None,
             log=True,
             n_mels=128,
-            example_duration=2,
-            example_hop_duration=1.5,
+            example_duration=-1,
+            example_hop_duration=-1,
             dtype=np.float32):
 
         self.sr = sr
@@ -173,6 +173,8 @@ class MelSpecExtractor:
 
 class CorrelogramExtractor:
     """Extractor of correlogram series, preminarily used for vehicle detection.
+
+    If example_duration == -1, it is set to the audio signal duration.
     """
 
     def __init__(
@@ -181,8 +183,8 @@ class CorrelogramExtractor:
             sr=48000,
             n_fft=1024,
             hop_length=1024,
-            example_duration=5*8192./48000,
-            example_hop_duration=5*8192./48000,
+            example_duration=-1,
+            example_hop_duration=-1,
             gcc_norm=False,
             dtype=np.float32):
 
@@ -369,13 +371,15 @@ class CorrelogramExtractor:
 class AudioSegmentExtractor:
     """
     Raw audio segment extractor.
+    
+    If example_duration == -1, it is set to the audio signal duration.
     """
 
     def __init__(
             self, 
             sr=22050,
-            example_duration=2,
-            example_hop_duration=1.5,
+            example_duration=-1,
+            example_hop_duration=-1,
             dtype=np.float32):
 
         self.sr = sr
