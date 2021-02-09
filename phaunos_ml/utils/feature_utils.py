@@ -1,8 +1,8 @@
 import numpy as np
 from enum import Enum
-import librosa
 import json
-import matplotlib.pyplot as plt
+
+from .librosa_lite import melspectrogram
 
 
 """
@@ -119,7 +119,7 @@ class MelSpecExtractor:
         n_channels = audio.shape[0]
 
         # Compute mel spectrogram
-        mel_sp = np.array([librosa.feature.melspectrogram(
+        mel_sp = np.array([melspectrogram(
             y=audio[c],
             sr=sr,
             n_mels=self.n_mels,
@@ -472,9 +472,6 @@ class AudioSegmentExtractor:
 
         return segments, mask_segments, times
         
-    def plot(self, data):
-        return plt.plot(np.arange(len(data))/self.sr, data)
-
     def __repr__(self):
         t = type(self)        
         return '{}.{}. Config: {}'.format(t.__module__, t.__qualname__, self.__dict__)
