@@ -58,7 +58,7 @@ class MelSpecExtractor:
         self.dtype = dtype
         
         if self.example_duration != -1:
-            self.feature_size = int(self.example_duration * self.feature_rate)
+            self.feature_size = int(self.example_duration * self.feature_rate) + 1
         else:
             self.feature_size = -1
 
@@ -220,7 +220,7 @@ class CorrelogramExtractor:
                              ' be larger than 2 * max_delay ({2*max_delay})')
         
         if self.example_duration != -1:
-            self.feature_size = int(self.example_duration * self.feature_rate)
+            self.feature_size = int(self.example_duration * self.feature_rate) + 1
         else:
             self.feature_size = -1
 
