@@ -210,11 +210,6 @@ class CorrelogramExtractor:
         self.gcc_norm = gcc_norm
         self.dtype = dtype
 
-        # Indices of the correlogram corresponding to
-        # -max_delay and +max_delay
-        self.ind_min = int(n_fft / 2 - max_delay * sr)
-        self.ind_max = int(n_fft / 2 + max_delay * sr)
-
         if self.ind_min < 0 or self.ind_max >= n_fft:
             raise ValueError(f'n_fft duration ({n_fft/sr:.3f}) must' +
                              ' be larger than 2 * max_delay ({2*max_delay})')
@@ -238,6 +233,15 @@ class CorrelogramExtractor:
         )
         obj.dtype = NP_DTYPE[config['dtype']].value
         return obj
+
+    # Indices of the correlogram corresponding to
+    # -max_delay and +max_delay
+    @property
+    def ind_min(self):
+        return int(self.n_fft / 2 - self.max_delay * self.sr)
+    @property
+    def ind_max(self):
+        return int(self.n_fft / 2 + self.max_delay * self.sr)
 
     @property
     def feature_rate(self):
