@@ -182,7 +182,8 @@ def tfrecords2dataset(
         dataset = dataset.shuffle(shuffle_size)
     if repeat:
         dataset = dataset.repeat()
-    dataset = dataset.batch(batch_size, drop_remainder=True)
+    if batch_size:
+        dataset = dataset.batch(batch_size, drop_remainder=True)
     return dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 
