@@ -142,6 +142,9 @@ def audio2tfrecord(
                 if annotation_set else set()
             if label_subset:
                 labels = labels.intersection(label_subset)
+            if not labels:
+                # if no label is found, do not write
+                continue
             sdata = serialize_data(
                 tfrecord_relpath,
                 start_time,
