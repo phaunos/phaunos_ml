@@ -26,12 +26,10 @@ def data2tfrecord(
         root_path,
         outdir_path,
         feature_extractor,
-        activity_detector=None,
-        min_activity_dur=None,
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         with_labels=True,
-        label_subset=None,
+        label_subsets=None,
         **kwargs
 ):
     """Target function for dataset2tfrecord multiprocessing"""
@@ -49,9 +47,7 @@ def data2tfrecord(
         outdir_path,
         feature_extractor,
         annfile_relpath=annfile_relpath,
-        activity_detector=activity_detector,
-        min_activity_dur=min_activity_dur,
-        label_subset=label_subset,
+        label_subsets=label_subsets,
         **kwargs
     )
 
@@ -60,12 +56,10 @@ def dataset2tfrecords(
         datasetfile_path,
         outdir_path,
         feature_extractor,
-        activity_detector=None,
-        min_activity_dur=None,
         audioroot_relpath='audio',
         annroot_relpath='annotations',
         with_labels=True,
-        label_subset=None,
+        label_subsets=None,
         n_processes=None,
         **kwargs
 ):
@@ -77,12 +71,10 @@ def dataset2tfrecords(
         datasetfile_path: file containing a list of audio file paths relative to root_path
         outdir_path: path of the output directory
         feature_extractor: see :func:`.feature_utils`
-        activity_detector: frame-based activity_detector, as described in nsb_aad.frame_based_detectors.
-        min_activity_dur: minimum duration of activity to be found in an example.
         audioroot_relpath: root path of the audio files, relative to root_path
         annroot_relpath: root path of the annotation files, relative to root_path
         with_labels: whether to include labels in the tfrecords or not.
-        label_subset (set): label subset. If None, all labels are written.
+        label_subsets (set): label subsets. If None, all labels are written.
         n_processes: number of processes to split the computation in.
                      If None, os.cpu_count() is used (multiprocessing.Pool's default)
             
@@ -96,12 +88,10 @@ def dataset2tfrecords(
     lines = open(datasetfile_path, 'r').readlines()
 
     kwds={
-        'activity_detector': activity_detector,
-        'min_activity_dur': min_activity_dur,
         'audioroot_relpath': audioroot_relpath,
         'annroot_relpath': annroot_relpath,
         'with_labels': with_labels,
-        'label_subset': label_subset
+        'label_subsets': label_subsets
     } 
     kwds={**kwds, **kwargs}
 

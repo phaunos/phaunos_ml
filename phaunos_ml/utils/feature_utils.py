@@ -96,25 +96,19 @@ class MelSpecExtractor:
             del d['feature_size']
             json.dump(d, f)
 
-    def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
+    def process(self, audio, sr):
         """Compute mel spectrogram.
 
         Args:
             audio: [n_channels, n_samples]
             sr: sample rate
-            mask: boolean mask
-            mask_sr: mask sample rate
-            mask_min_dur: minimum total duration, in seconds, of
-                positive mask values in a segment
 
         Returns a list of feature arrays representing the fixed-sized examples
-        (in format NCHW), a boolean mask and the times boundaries of the examples.
+        (in format NCHW) and the times boundaries of the examples.
         """
 
         if sr != self.sr:
             raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
-        if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
-            raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
 
         n_channels = audio.shape[0]
 
@@ -145,24 +139,15 @@ class MelSpecExtractor:
         if self.log:
             segments = np.log(segments + LOG_OFFSET)
 
-        # Build mask and times arrays
-        n_segments = segments.shape[0]
-        mask_segments = np.ones(n_segments, dtype=np.bool)
-        times = []
-        start = 0
-        for i in range(n_segments):
-            end = start + self.feature_size - 1
-            times.append((start/self.feature_rate, (end+1)/self.feature_rate))
-            if not (mask is None):
-                start_mask = int(start / self.feature_rate * mask_sr)
-                end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
-                # count positive mask values in the segment
-                n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
-                # if the total duration of the positive mask frames is above the threshold, set segment mask to True
-                mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
-            start += self.example_hop_size
+        # Build times arrays
+        times = [
+            (
+                i * self.example_hop_size / self.feature_rate,
+                (i * self.example_hop_size + self.feature_size) / self.feature_rate
+            ) for i in range(segments.shape[0])
+        ]
         
-        return segments, mask_segments, times
+        return segments, times
 
     def __repr__(self):
         t = type(self)        
@@ -296,19 +281,15 @@ class CorrelogramExtractor:
             c = np.fft.fftshift(c, axes=1)
         return c
 
-    def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
+    def process(self, audio, sr):
         """Computes series of Generalized Cross-Correlation with Phase Transform (GCC-PHAT).
 
         Args:
             audio: [2, n_samples].
             sr: sample rate
-            mask: boolean mask
-            mask_sr: mask sample rate
-            mask_min_dur: minimum total duration, in seconds, of
-                positive mask values in a segment
 
         Returns a list of feature arrays representing the fixed-sized examples
-        (in format NCHW), a boolean mask and the times boundaries of the examples.
+        (in format NCHW) and the times boundaries of the examples.
         """
 
         n_channels = audio.shape[0]
@@ -317,8 +298,6 @@ class CorrelogramExtractor:
             raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
         if n_channels != 2:
             raise ValueError(f'Audio must have two channels (found {n_channels})')
-        if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
-            raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
         
         # Create overlapping frames
         frames = seq2frames(
@@ -345,24 +324,15 @@ class CorrelogramExtractor:
             self.feature_size = gccs.shape[-1]
             segments = np.expand_dims(gccs, 0)
 
-        # Build mask and times arrays
-        n_segments = segments.shape[0]
-        mask_segments = np.ones(n_segments, dtype=np.bool)
-        times = []
-        start = 0
-        for i in range(n_segments):
-            end = start + self.feature_size - 1
-            times.append((start/self.feature_rate, (end+1)/self.feature_rate))
-            if not (mask is None):
-                start_mask = int(start / self.feature_rate * mask_sr)
-                end_mask = int(min(len(mask) - 1, end / self.feature_rate * mask_sr))
-                # count positive mask values in the segment
-                n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
-                # if the total duration of the positive mask frames is above the threshold, set segment mask to True
-                mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
-            start += self.example_hop_size
+        # Build times arrays
+        times = [
+            (
+                i * self.example_hop_size / self.feature_rate,
+                (i * self.example_hop_size + self.feature_size) / self.feature_rate
+            ) for i in range(segments.shape[0])
+        ]
         
-        return segments, mask_segments, times
+        return segments, times
 
     def __repr__(self):
         t = type(self)        
@@ -423,25 +393,19 @@ class AudioSegmentExtractor:
             del d['feature_size']
             json.dump(d, f)
 
-    def process(self, audio, sr, mask=None, mask_sr=None, mask_min_dur=None):
+    def process(self, audio, sr):
         """Compute fixed-sized audio chunks.
 
         Args:
             audio: [n_channels, n_samples]
             sr: sample rate
-            mask: boolean mask
-            mask_sr: mask sample rate
-            mask_min_dur: minimum total duration, in seconds, of
-                positive mask values in a segment
 
         Returns a list of feature arrays representing the fixed-sized examples
-        (in format NCHW), a boolean mask and the times boundaries of the examples.
+        (in format NCHW) and the times boundaries of the examples.
         """
 
         if sr != self.sr:
             raise ValueError(f'Sample rate must be {self.sr} ({sr} detected)')
-        if not ((mask is None) == (mask_sr is None) == (mask_min_dur is None)):
-            raise ValueError("mask, mask_sr and mask_min_dur parameters must be all set or all not set.")
         
         audio = np.expand_dims(audio, 1) # to CHW
 
@@ -457,24 +421,15 @@ class AudioSegmentExtractor:
             self.feature_size = audio.shape[-1]
             segments = np.expand_dims(audio, 0)
 
-        # Build mask and times arrays
-        n_segments = segments.shape[0]
-        mask_segments = np.ones(n_segments, dtype=np.bool)
-        times = []
-        start = 0
-        for i in range(n_segments):
-            end = start + self.feature_size - 1
-            times.append((start/self.sr, (end+1)/self.sr))
-            if not (mask is None):
-                start_mask = int(start / self.sr * mask_sr)
-                end_mask = int(min(len(mask) - 1, end / self.sr * mask_sr))
-                # count positive mask values in the segment
-                n_pos = np.count_nonzero(mask[start_mask:end_mask]) if start_mask < len(mask) else 0
-                # if the total duration of the positive mask frames is above the threshold, set segment mask to True
-                mask_segments[i] = True if n_pos / mask_sr > mask_min_dur else False
-            start += self.example_hop_size
+        # Build times arrays
+        times = [
+            (
+                i * self.example_hop_size / self.feature_rate,
+                (i * self.example_hop_size + self.feature_size) / self.feature_rate
+            ) for i in range(segments.shape[0])
+        ]
 
-        return segments, mask_segments, times
+        return segments, times
         
     def __repr__(self):
         t = type(self)        
