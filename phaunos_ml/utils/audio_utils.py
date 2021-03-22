@@ -31,33 +31,35 @@ def audiofile2tfrecord(
         audiofile_relpath,
         outdir_path,
         feature_extractor,
-        annfile_relpath=None,
-        label_subsets=None,
+        annfile_relpaths,
+        label_sets,
         **kwargs
 ):
-    """ Compute fixed-size examples with features (and optionally labels)
-    from an audio file and write to a tfrecord.
+    """ Compute fixed-size examples with features from an audio file and write to 
+    one tfrecord per annfile_relpath / label_set pair.
 
     Args:
-        root_path: root path of the audio and (optionally) annotation files.
+        root_path: root path of the audio and annotation files.
         audiofile_relpath: path, relative to root_path, to the audio file.
         outdir_path: path of the output directory.
-        feature_extractor: see :func:`.feature_utils`.
-        annfile_relpath: path, relative to root_path, to the annotation file, as described in :func:`.annotation_utils`. If set, labels are also written to the tfrecord.
-        label_subset (set): label subset. If None, all labels are written.
-    Returns:
-        Writes one tfrecord in <outdir_path>/<audiofile_relpath> (changing the extension of the file
-        from '.wav' to '.tf'.
+        feature_extractor: see feature_utils
+        annfile_relpaths: list of paths, relative to root_path, to the annotation files,
+            as described in :func:`.annotation_utils`.
+        label_sets: list of label subsets.
+    Returns: See audio2tfrecords.
     """
 
     # read audio
     audio, sr = load_audio(os.path.join(root_path, audiofile_relpath))
 
-    # read annotations
-    if annfile_relpath:
-        annotation_set = read_annotation_file(os.path.join(root_path, annfile_relpath))
-    else:
-        annotation_set =  None
+    # read annotation files
+    annotation_sets = []
+    for annfile_relpath in annfile_relpaths:
+        annfile_path = os.path.join(root_path, annfile_relpath)
+        if os.path.isfile(annfile_path):
+            annotation_sets.append(read_annotation_file(annfile_path))
+        else:
+            annotation_sets.append(set())
 
     audio2tfrecord(
         audio,
@@ -65,8 +67,8 @@ def audiofile2tfrecord(
         outdir_path,
         audiofile_relpath,
         feature_extractor,
-        annotation_set,
-        label_subsets=label_subsets,
+        annotation_sets,
+        label_sets,
         **kwargs
     )
 
@@ -77,8 +79,8 @@ def audio2tfrecord(
         outdir_path,
         audiofile_relpath,
         feature_extractor,
-        annotation_set=None,
-        label_subsets=None,
+        annotation_sets,
+        label_sets,
         **kwargs
 ):
     """ Compute fixed-size examples with features (and optionally labels)
@@ -90,67 +92,58 @@ def audio2tfrecord(
         outdir_path: path of the output directory.
         tfrecord_relpath: relative path to which the tfrecord will be written in outdir_path.
         feature_extractor: see :func:`.feature_utils`.
-        annotation_set: set of annotation objects.
-        label_subset (set): label subset. If None, all labels are written.
+        annotation_sets: sets of annotation objects.
+        label_sets: list of label subsets.
     Returns:
-        Writes one tfrecord per label subset in <outdir_path>/subset<subset_ind>/<audiofile_relpath>
+        Writes one tfrecord per annotation set / label subset pair in
+        <outdir_path>/annset<annset_ind>/labelset<labelset_ind>/<audiofile_relpath>
     """
 
     # Compute features and segment boundaries
     features, times = feature_extractor.process(audio, sr)
 
-    # Create one TFRecordWriter per label subset
-    if label_subsets is None:
-        tfrecord_paths = [
-            os.path.join(
+    # Create one TFRecordWriter per annotation set and label set pair
+    tfrecord_writers = [
+        [[] for i in range(len(annotation_sets))],
+        [[] for i in range(len(label_sets))]]
+    for annset_ind in range(len(annotation_sets)):
+        for labelset_ind in range(len(label_sets)):
+            tfrecord_path = os.path.join(
                 outdir_path,
-                f'subset0',
+                f'annset{annset_ind}',
+                f'labelset{labelset_ind}',
                 audiofile_relpath.replace('.wav', '.tf')
             )
-        ]
-    else:
-        tfrecord_paths = [
-            os.path.join(
-                outdir_path,
-                f'subset{i}',
-                audiofile_relpath.replace('.wav', '.tf')
-            )
-            for i in range(len(label_subsets))
-        ]
-
-    tfrecord_writers = []
-    for tfrecord_path in tfrecord_paths:
-        os.makedirs(os.path.dirname(tfrecord_path), exist_ok=True)
-        tfrecord_writers.append(tf.io.TFRecordWriter(tfrecord_path))
+            os.makedirs(os.path.dirname(tfrecord_path), exist_ok=True)
+            tfrecord_writers[annset_ind][labelset_ind] = tf.io.TFRecordWriter(tfrecord_path)
 
     # Write data to TFRecords
-    for i in range(features.shape[0]):
+    for ex_ind in range(features.shape[0]):
 
-        start_time, end_time = times[i] 
+        start_time, end_time = times[ex_ind] 
         # Last example's end time is set to original audio file duration
         # to avoid mislabeling.
-        if i == features.shape[0] - 1:
+        if ex_ind == features.shape[0] - 1:
             end_time = audio.shape[-1] / sr
 
-        labels = get_labels_in_range(annotation_set, start_time, end_time, **kwargs)
-        if not labels:
-            continue
+        for annset_ind, annset in enumerate(annotation_sets):
 
-        sdata = serialize_data(
-            audiofile_relpath,
-            start_time,
-            end_time,
-            features[i],
-            labels
-        )
+            labels = get_labels_in_range(annset, start_time, end_time, **kwargs)
+            if not labels:
+                continue
 
-        if label_subsets is None:
-            tfrecord_writers[0].write(sdata)
-        else:
-            for i, label_subset in enumerate(label_subsets):
-                if not np.all([l in label_subset for l in labels]):
+            sdata = serialize_data(
+                audiofile_relpath,
+                start_time,
+                end_time,
+                features[ex_ind],
+                labels
+            )
+
+            for labelset_ind, labelset in enumerate(label_sets):
+                if not np.all([l in labelset for l in labels]):
                     continue
-                tfrecord_writers[i].write(sdata)
+                tfrecord_writers[annset_ind][labelset_ind].write(sdata)
 
     # Close
     for tfrecord_writer in tfrecord_writers:

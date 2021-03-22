@@ -26,28 +26,24 @@ def data2tfrecord(
         root_path,
         outdir_path,
         feature_extractor,
-        audioroot_relpath='audio',
-        annroot_relpath='annotations',
-        with_labels=True,
-        label_subsets=None,
+        audioroot_relpath,
+        annroot_relpaths,
+        label_sets,
         **kwargs
 ):
     """Target function for dataset2tfrecord multiprocessing"""
 
     audiofile_relpath = line.strip()
-    if with_labels:
-        annfile_relpath = audiofile_relpath.replace(audioroot_relpath, annroot_relpath) \
-            .replace('.wav', ANN_EXT)
-    else:
-        annfile_relpath = None
+    annfile_relpaths = [audiofile_relpath.replace(audioroot_relpath, annroot_relpath) \
+            .replace('.wav', ANN_EXT) for annroot_relpath in annroot_relpaths]
 
     audiofile2tfrecord(
         root_path,
         audiofile_relpath,
         outdir_path,
         feature_extractor,
-        annfile_relpath=annfile_relpath,
-        label_subsets=label_subsets,
+        annfile_relpaths,
+        label_sets,
         **kwargs
     )
 
@@ -56,25 +52,23 @@ def dataset2tfrecords(
         datasetfile_path,
         outdir_path,
         feature_extractor,
-        audioroot_relpath='audio',
-        annroot_relpath='annotations',
-        with_labels=True,
-        label_subsets=None,
+        audioroot_relpath,
+        annroot_relpaths,
+        label_sets,
         n_processes=None,
         **kwargs
 ):
-    """ Compute fixed-size examples with features (and optionally labels)
-    for all audio files in the dataset file and write to tfrecords.
+    """ Compute fixed-size examples with features for all audio files in the dataset
+    file and write to tfrecords.
 
     Args:
-        root_path: root path of the audio and (optionally) annotation files.
+        root_path: See audio_utils.audiofile2tfrecord.
         datasetfile_path: file containing a list of audio file paths relative to root_path
-        outdir_path: path of the output directory
-        feature_extractor: see :func:`.feature_utils`
+        outdir_path: See audio_utils.audio2tfrecord.
+        feature_extractor: See audio_utils.audio2tfrecord.
         audioroot_relpath: root path of the audio files, relative to root_path
-        annroot_relpath: root path of the annotation files, relative to root_path
-        with_labels: whether to include labels in the tfrecords or not.
-        label_subsets (set): label subsets. If None, all labels are written.
+        annroot_relpaths: list of root paths of the annotation files, relative to root_path
+        label_sets: See audio_utils.audio2tfrecord.
         n_processes: number of processes to split the computation in.
                      If None, os.cpu_count() is used (multiprocessing.Pool's default)
             
@@ -87,14 +81,6 @@ def dataset2tfrecords(
 
     lines = open(datasetfile_path, 'r').readlines()
 
-    kwds={
-        'audioroot_relpath': audioroot_relpath,
-        'annroot_relpath': annroot_relpath,
-        'with_labels': with_labels,
-        'label_subsets': label_subsets
-    } 
-    kwds={**kwds, **kwargs}
-
     # Start processes
     pool = multiprocessing.Pool(n_processes)
     for line in lines:
@@ -106,9 +92,12 @@ def dataset2tfrecords(
                 line,
                 root_path,
                 outdir_path,
-                feature_extractor            
+                feature_extractor,
+                audioroot_relpath,
+                annroot_relpaths,
+                label_sets,
             ),
-            kwds=kwds
+            kwds=kwargs
         )
     pool.close()
     pool.join()
